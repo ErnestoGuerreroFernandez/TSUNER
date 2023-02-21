@@ -99,7 +99,7 @@ void leerLatitudGRD(double *lat)
 	iret = nc_get_var_double(id, lat_id, lat);
 	check_errGRD(iret);
 }
-void leerBatimetriaGRD(int num_volx, int num_voly, float *bati)
+void leerBatimetriaGRD(long unsigned int num_volx, long unsigned int num_voly, float *bati)
 {
 	int id, iret;
 	int z_id;
@@ -113,7 +113,7 @@ void leerBatimetriaGRD(int num_volx, int num_voly, float *bati)
 	check_errGRD(iret);
 }
 
-void leerEmisoresGRD(int num_volx, int num_voly, float *emisores)
+void leerEmisoresGRD(long unsigned int num_volx, long unsigned int num_voly, float *emisores)
 {
 	int id, iret;
 	int z_id;
@@ -304,12 +304,10 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
 */
 
 // Devuelve 0 si todo ha ido bien, 1 si no existe algun fichero, y 2 si no hay memoria CPU suficiente
-int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 **dVhu,double **dVH, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &tiempo_tot, double &tiempo_guardar, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &HQB, int SPL, double &vmax, double &epsilon_h)
+int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 **dVhu,double **dVH, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &tiempo_tot, double &tiempo_guardar, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &HQB, double &vmax, double &epsilon_h)
 {
 	int i, j;
-    double x,y;
     int pos;
-    double prof;
     string file_bat;
     string file_emisores;
  	char c;
@@ -413,8 +411,20 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
             velocidad(x,y,(*dVhu)[pos]);
             (*dVhu)[pos].x *= (*dVh)[pos];
             (*dVhu)[pos].y *= (*dVh)[pos];
+//             if(j==3) printf("%d  %d  %.15f \n",i,j,(*dVH)[pos]);
         }         
     }
+/*    
+    for (j=0; j<npy; j++) {
+        for (i=0; i<npx; i++) {
+            int pos0 = (j-1)*npx + i;
+            int pos1 = j*npx + i;
+            if(j==0) pos0=(npy-1)*npx +i;
+            printf("%.15f \n", (*dVh)[pos0]-(*dVh)[pos1]);
+            
+        }
+    }
+    exit(-1);*/
 
 	return 0;
 }

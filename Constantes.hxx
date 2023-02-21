@@ -23,10 +23,11 @@
 #define model       0
 #define solver      0
 
-#define order       2
-#define RK          0
+#define order       1
+#define RK          1
 
-#define WBC         1  // Wall type boundary conditions. 1=wall, 0=free flow.
+#define WBC         2  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
+#define SPL         0  // Sponge layer. It has to be >=0
 
 using namespace std;
 
@@ -57,7 +58,7 @@ __device__ double d_Q;
 __device__ double d_DS;
 __device__ double d_HQB;
 __device__ double d_FR;
-__device__ int d_SPL;
+// __device__ int d_SPL;
 #endif
 
 #endif

@@ -32,14 +32,14 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	char nombre_fich[256];
 	char cadena[256];
 	// Dimensiones
-	int grid_x_dim, grid_y_dim;
+// 	int grid_x_dim, grid_y_dim;
 	int grid_dims[2];
 	int x_dim, y_dim;
     int var_dims[3];
     int time_dim;
 	// Ids
 	int ncid;
-	int grid_id, grid_x_id, grid_y_id;
+// 	int grid_id, grid_x_id, grid_y_id;
 	int x_id, y_id;
 	double val_double, fill_double;
 	struct timeval tv;
@@ -59,10 +59,10 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	iret = nc_def_dim(ncid, "y", npy, &y_dim);
 	check_err(iret);
     
-    iret = nc_def_dim(ncid, "grid_x", npx, &grid_x_dim);
-    check_err(iret);
-    iret = nc_def_dim(ncid, "grid_y", npy, &grid_y_dim);
-    check_err(iret);
+//     iret = nc_def_dim(ncid, "grid_x", npx, &grid_x_dim);
+//     check_err(iret);
+//     iret = nc_def_dim(ncid, "grid_y", npy, &grid_y_dim);
+//     check_err(iret);
 	iret = nc_def_dim(ncid, "time", NC_UNLIMITED, &time_dim);
 	check_err(iret);
 
@@ -72,10 +72,10 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	iret = nc_def_var(ncid, "y", NC_DOUBLE, 1, &y_dim, &y_id);
 	check_err(iret);
     
-    iret = nc_def_var(ncid, "grid_x", NC_DOUBLE, 1, &grid_x_dim, &grid_x_id);
-    check_err(iret);
-    iret = nc_def_var(ncid, "grid_y", NC_DOUBLE, 1, &grid_y_dim, &grid_y_id);
-    check_err(iret);
+//     iret = nc_def_var(ncid, "grid_x", NC_DOUBLE, 1, &grid_x_dim, &grid_x_id);
+//     check_err(iret);
+//     iret = nc_def_var(ncid, "grid_y", NC_DOUBLE, 1, &grid_y_dim, &grid_y_id);
+//     check_err(iret);
 //     grid_dims[0] = grid_y_dim;
 //     grid_dims[1] = grid_x_dim;
 //     iret = nc_def_var(ncid, "b", NC_DOUBLE, 2, grid_dims, &grid_id);
@@ -125,16 +125,16 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	fill_double = -1e+30;
     
 	
-    iret = nc_put_att_text(ncid, grid_id, "long_name", 15, "Grid bathymetry");
-    check_err(iret);
-    iret = nc_put_att_text(ncid, grid_id, "standard_name", 5, "depth");
-    check_err(iret);
-    iret = nc_put_att_text(ncid, grid_id, "units", 6, "meters");
-    check_err(iret);
-    iret = nc_put_att_double(ncid, grid_id, "missing_value", NC_DOUBLE, 1, &fill_double);
-    check_err(iret);
-    iret = nc_put_att_double(ncid, grid_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
-    check_err(iret);
+//     iret = nc_put_att_text(ncid, grid_id, "long_name", 15, "Grid bathymetry");
+//     check_err(iret);
+//     iret = nc_put_att_text(ncid, grid_id, "standard_name", 5, "depth");
+//     check_err(iret);
+//     iret = nc_put_att_text(ncid, grid_id, "units", 6, "meters");
+//     check_err(iret);
+//     iret = nc_put_att_double(ncid, grid_id, "missing_value", NC_DOUBLE, 1, &fill_double);
+//     check_err(iret);
+//     iret = nc_put_att_double(ncid, grid_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
+//     check_err(iret);
 
     iret = nc_put_att_text(ncid, hmax_id, "long_name", 4, "hmax");
     check_err(iret);
@@ -150,14 +150,14 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 
 
 
-    iret = nc_put_att_text(ncid, grid_x_id, "long_name", 6, "x Grid");
-    check_err(iret);
-    iret = nc_put_att_text(ncid, grid_x_id, "units", 6, "meters");
-    check_err(iret);
-    iret = nc_put_att_text(ncid, grid_y_id, "long_name", 6, "y Grid");
-    check_err(iret);
-    iret = nc_put_att_text(ncid, grid_y_id, "units", 6, "meters");
-    check_err(iret);
+//     iret = nc_put_att_text(ncid, grid_x_id, "long_name", 6, "x Grid");
+//     check_err(iret);
+//     iret = nc_put_att_text(ncid, grid_x_id, "units", 6, "meters");
+//     check_err(iret);
+//     iret = nc_put_att_text(ncid, grid_y_id, "long_name", 6, "y Grid");
+//     check_err(iret);
+//     iret = nc_put_att_text(ncid, grid_y_id, "units", 6, "meters");
+//     check_err(iret);
 	
 
 	iret = nc_put_att_text(ncid, x_id, "long_name", 5, "x dim");
@@ -228,10 +228,10 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
     
 
 	
-    iret = nc_put_var_double(ncid, grid_x_id, xgrid);
-    check_err(iret);
-    iret = nc_put_var_double(ncid, grid_y_id, ygrid);
-    check_err(iret);
+//     iret = nc_put_var_double(ncid, grid_x_id, xgrid);
+//     check_err(iret);
+//     iret = nc_put_var_double(ncid, grid_y_id, ygrid);
+//     check_err(iret);
 //     iret = nc_put_var_double(ncid, grid_id, bati);
 //     check_err(iret);
 	
@@ -244,8 +244,8 @@ int initNC(char *prefijo, int npx,int npy, double xmin, double xmax, double ymin
 	int i;
 
 	ErrorEnNetCDF = false;
-	xgrid = (double *) malloc(npx*sizeof(double));
-	ygrid = (double *) malloc(npy*sizeof(double));
+    xgrid = new double [npx]();
+    ygrid = new double [npy]();
 	if (ygrid == NULL) {
 		free(xgrid);
 		return 1;
@@ -261,9 +261,8 @@ int initNC(char *prefijo, int npx,int npy, double xmin, double xmax, double ymin
 	fgennc(xmin, xmax, ymin, ymax, xgrid, ygrid, prefijo, &ncid, &timef, eta_id, vel_id,npx, npy, tiempo_tot, bati);
 
 	
-
-	free(xgrid);
-	free(ygrid);
+    delete [] xgrid;
+    delete [] ygrid;
 
 	return 0;
 }
@@ -290,7 +289,7 @@ void writerecs(int npx, int npy, int ncid, int time_id, int var_id, int paso, do
 	check_err(iret);
 }
 */
-void writeEtaNC(int npx, int npy, int numt, double tiempo_act, double *eta)
+void writeEtaNC(long unsigned int npx, long unsigned int npy, int numt, double tiempo_act, double *eta)
 {
     int iret;
     const size_t num = numt;
@@ -307,7 +306,7 @@ void writeEtaNC(int npx, int npy, int numt, double tiempo_act, double *eta)
 
 
 
-void write_tiempo(int npx, int npy, int numt, double tiempo_act)
+void write_tiempo(long unsigned int npx, long unsigned int npy, int numt, double tiempo_act)
 {
     int iret;
 	double t_act = tiempo_act;
@@ -319,7 +318,7 @@ void write_tiempo(int npx, int npy, int numt, double tiempo_act)
 	check_err(iret);
 }
 
-void writevelNC(int npx, int npy, int numt, int componente, double *var)
+void writevelNC(long unsigned int npx, long unsigned int npy, int numt, int componente, double *var)
 {
     int iret;
 	const size_t num = numt;
@@ -334,7 +333,7 @@ void writevelNC(int npx, int npy, int numt, int componente, double *var)
 	check_err(iret);
 }
 
-void writeHNC(int npx, int npy, int numt, double *var)
+void writeHNC(long unsigned int npx, long unsigned int npy, int numt, double *var)
 {
     int iret;
 	const size_t num = numt;

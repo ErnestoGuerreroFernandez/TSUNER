@@ -41,16 +41,9 @@ __device__ double minmod(double a, double b, double c)
 
 __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, double* d_hx, double* d_hy, double2* d_hux, double2* d_huy, double* d_zbx,double* d_zby, int npx, int npy, double delta_T, double inv_dx, double inv_dy, double epsilon_h,double2* d_Ahu) {
 
-    int pos,posl,posr;
+
     int i,j;
-    int im,ip,jm,jp;
-    
-    double dta,Hl,Hi,Hr;
-    double hi,hl,hr;
-    double2 ui,ul,ur;
-    double dl, dr, du;
-    double deta;
-    
+    int pos;
 	i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
 	j = blockIdx.y*NUM_HEBRAS_ALTO_EST + threadIdx.y;
 
@@ -58,6 +51,10 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         pos = j*npx + i;
         
 #if order == 1
+//                     int pos0 = (j-1)*npx + i;
+//             int pos1 = j*npx + i;
+//             if(j==0) pos0=(npy-1)*npx +i;
+//             printf("%.15f \n", d_dVh[pos0]-d_dVh[pos1]);
         d_hx[pos]=0.0;
         d_zbx[pos]=0.0;
         d_hux[pos].x=0.0;
@@ -69,6 +66,13 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         d_huy[pos].y=0.0;
 #else   
  
+        int posl,posr;
+        int im,ip,jm,jp;
+        double dta,Hl,Hi,Hr;
+        double hi,hl,hr;
+        double2 ui,ul,ur;
+        double dl, dr, du;
+        double deta;
         
         // **********************
         // Direccion x
@@ -79,6 +83,10 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         
         im=i-1*(i>0);
         ip=i+1*(i<npx-1);
+#if WBC==2
+        if(i==0) im = npx-1;
+        if(i==npx-1) ip = 0;
+#endif
         posl=j*npx + im;
         posr=j*npx + ip;
         hl=d_dVh[posl];
@@ -129,6 +137,10 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
 
         jm=j-1*(j>0);
         jp=j+1*(j<npy-1);
+#if WBC==2
+        if(j==0) jm = npy-1;
+        if(j==npy-1) jp = 0;
+#endif
         posl=jm*npx +i;
         posr=jp*npx +i;
         hl=d_dVh[posl];
