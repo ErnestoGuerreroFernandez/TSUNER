@@ -9,7 +9,7 @@
 extern "C" int comprobarSoporteCUDA(int cudaDevice);
 extern "C" void inicializarGPU();
 
-extern "C" int Lava(double *dVh, double2 *dVhu, double *dVH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double hl, double Hl, double2 ql, double hr, double Hr, double2 qr, double ht, double Ht, double2 qt, double hb, double Hb, double2 qb, double &tiempo, int CudaDevice);
+extern "C" int Lava(double *dVh, double2 *dVhu, double *dVH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice);
 
 /*********************/
 /* Fin funciones GPU */
@@ -20,6 +20,9 @@ int main(int argc, char *argv[])
 	double2 *dVhu;  // hux huy
     double *dVh;  // h
     double* dVH; //batimetria
+    double *CC;
+    double *tCC;  // Boundary conditions.
+    long unsigned int timeCC;
 	int soporteCUDA, err;
     int cudaDevice;
 	int npx, npy, nvol;
@@ -65,64 +68,26 @@ int main(int argc, char *argv[])
             break;
     }
 	inicializarGPU();
-    
-    err = cargarDatosProblema(fich_ent, prefijo, &dVh, &dVhu, &dVH, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, tiempo_tot, tiempo_guardar, CFL, Q, DS, FR, Opar, OC, HQB, vmax, epsilon_h);
+
+    err = cargarDatosProblema(fich_ent, prefijo, &dVh, &dVhu, &dVH, &CC, &tCC, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, tiempo_tot, tiempo_guardar, CFL, Q, DS, FR, Opar, OC, HQB, vmax, epsilon_h);
 	if (err > 0)
 		return EXIT_FAILURE;
 	cout << scientific;
     
-            // Sponge layer dumping function and values at the boundary
-        double *d;
-        double hl, Hl, hr, Hr, ht, Ht, hb, Hb;
-        double2 ql, qr, qb, qt;
-        
+    // Sponge layer dumping function and values at the boundary
+    double *d;
+    
 #if SPL>0
-        d = new double [SPL]();
-        
-        int pmx, pmy;
-        pmx = int(npx/2);
-        pmy = int(npy/2);
-
-        
-        hl = dVh[pmy*npx];
-        Hl = dVH[pmy*npx];
-        ql.x = 0.0;
-        ql.y = 0.0;
-
-        hr = dVh[pmy*npx + npx-1];
-        Hr = dVH[pmy*npx + npx-1];
-        qr.x = 0.0;
-        qr.y = 0.0;
-
-        hb = dVh[pmx];
-        Hb = dVH[pmx];
-        qb.x = 0.0;
-        qb.y = 0.0;
-
-        ht = dVh[npx*npy-pmx];
-        Ht = dVH[npx*npy-pmx];
-        qt.x = 0.0;
-        qt.y = 0.0;
-        
-        hl = 1.0;
-        Hl = 0.0;
-        hr = hl;
-        Hr = Hl;
-//         hb = 00;
-//         Hb = Hl;
-        ht = hl;
-        Ht = Hl;
-
+    d = new double [SPL]();
         for (int i=0; i<SPL; i++){
             d[i] = (double(SPL-i)/double(SPL))*(double(SPL-i)/double(SPL));
-//             d[i] = 0.0;
+//             d[i] = 1.0;
         }
-
-        
 #endif
 
-        
-	err = Lava(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, hl, Hl, ql, hr, Hr, qr, ht, Ht, qt, hb, Hb, qb, tiempo_gpu,cudaDevice);
+
+
+	err = Lava(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
 	if (err > 0) {
 		if (err == 1)
 			cerr << "Error: No hay memoria GPU suficiente" << endl;
@@ -133,7 +98,9 @@ int main(int argc, char *argv[])
 	}
 	cout << endl << "Tiempo: " << tiempo_gpu << " seg." << endl;
 	liberarMemoria(dVh, dVhu, dVH);
-    
+#if SPL>0
+    delete [] d;
+#endif
     cout<<"Fin Normal."<<endl;
 
 	return EXIT_SUCCESS;

@@ -228,7 +228,7 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h, vmax);
+            filtro_estado(hl, ql , epsilon_h);
             
             hr=hl;
             zbr=zbl;
@@ -256,7 +256,7 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h, vmax);
+            filtro_estado(hl, ql , epsilon_h);
             
             if (i == npx) {
                 frontera=2;
@@ -277,11 +277,10 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h, vmax);  
+                filtro_estado(hr, qr , epsilon_h);  
                 
                 #endif
                     
-//                 if(pos0==0 || pos1==0) printf("Accion!!!!!");
                 procesarArista(hl, zbl, ql, hr, zbr, qr, 1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
             }
             else {
@@ -294,8 +293,7 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h, vmax);
-//                 if(pos0==0 || pos1==0) printf("Accion!!!!!");
+                filtro_estado(hr, qr , epsilon_h);
                 procesarArista(hl, zbl, ql, hr, zbr, qr, 1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
                 
             }
@@ -347,7 +345,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h, vmax);
+            filtro_estado(hl, ql , epsilon_h);
             
             hr=hl;
             zbr=zbl;
@@ -375,7 +373,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h, vmax);
+            filtro_estado(hl, ql , epsilon_h);
             
             if (j == npy) {
                 frontera=3;
@@ -397,7 +395,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h, vmax);
+                filtro_estado(hr, qr , epsilon_h);
                 #endif
                 
 //                 if(abs(hr-hl)>1e-11) printf("%d   %d   %.15f  \n", i, j, hr-hl);
@@ -413,7 +411,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h, vmax);
+                filtro_estado(hr, qr , epsilon_h);
                 
 //                 if(abs(hr-hl)>1e-11) printf("%d   %d   %.15f  \n", i, j, hr-hl);
                 procesarArista(hl, zbl, ql, hr, zbr, qr,0, 1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
@@ -537,16 +535,47 @@ __device__ void procesarArista_Volumenes(double hhl, double zb0, double2 qql, do
     }
  
  
-    FL[pos0]   = Dm[0];
-    FL[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
-    FL[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
-    FL[pos0+3] = Dm[3];
+
     
-    FR[pos1]   = Dp[0];
-    FR[pos1+1] = (normal_x*Dp[1]-normal_y*Dp[2]);
-    FR[pos1+2] = (normal_y*Dp[1]+normal_x*Dp[2]);
-    FR[pos1+3] = Dp[3];
+#if WBC==2
+    FR[pos0]   = Dm[0];
+    FR[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
+    FR[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
+    FR[pos0+3] = Dm[3];
     
+    FL[pos1]   = Dp[0];
+    FL[pos1+1] = (normal_x*Dp[1]-normal_y*Dp[2]);
+    FL[pos1+2] = (normal_y*Dp[1]+normal_x*Dp[2]);
+    FL[pos1+3] = Dp[3];
+#else
+    if (pos1>0){
+        FR[pos0]   = Dm[0];
+        FR[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
+        FR[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
+        FR[pos0+3] = Dm[3];
+        
+        FL[pos1]   = Dp[0];
+        FL[pos1+1] = (normal_x*Dp[1]-normal_y*Dp[2]);
+        FL[pos1+2] = (normal_y*Dp[1]+normal_x*Dp[2]);
+        FL[pos1+3] = Dp[3];
+    }
+    else{
+        if(pos1==-1){
+            FL[pos0]   = Dm[0];
+            FL[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
+            FL[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
+            FL[pos0+3] = Dm[3];           
+        }
+        else{
+            FR[pos0]   = Dm[0];
+            FR[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
+            FR[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
+            FR[pos0+3] = Dm[3];
+        }
+
+    }
+    
+#endif
  
     
     

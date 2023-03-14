@@ -7,11 +7,44 @@
 
 
 
-__global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double *d_hx, double2 *d_hux, double *d_zbx, double *d_hy, double2 *d_huy, double *d_zby, double *FL, double *FR, double *FU, double *FD){
+__device__ void interpolate_time(double *CC, double *tCC, long unsigned int timeCC, double tiempo_act, double &h1, double &zb1, double2 &q1, int npx, int npy, int pos){
+    
+    double dt;
+    dt = tCC[1]-tCC[0];
+    
+    int t, tp;
+    t = int(tiempo_act/dt);
+    tp = t+1;
+    int posCC = t*(2*npx+2*npy)*4 + pos*4;
+    int posCCp = tp*(2*npx+2*npy)*4 + pos*4;
+    
+    double m, b;
+    m = (CC[posCCp]-CC[posCC])/(tCC[tp]-tCC[t]);
+    b = CC[posCC] - m*tCC[t];
+    h1 = m*tiempo_act+b;
+    h1*=UNITS;
+
+    h1 += zb1;    
+
+    m = (CC[posCCp+1]-CC[posCC+1])/(tCC[tp]-tCC[t]);
+    b = CC[posCC+1] - m*tCC[t];
+    q1.x = m*tiempo_act+b;    
+    q1.x*= UNITS* h1;
+
+    m = (CC[posCCp+2]-CC[posCC+2])/(tCC[tp]-tCC[t]);
+    b = CC[posCC+2] - m*tCC[t];
+    q1.y = m*tiempo_act+b;   
+    q1.y*= UNITS*h1;
+
+
+    
+}
+
+
+__global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC){
 
 	int i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
 	int j = blockIdx.y*NUM_HEBRAS_ANCHO_EST  + threadIdx.y;
-// 	int pi, pj, bp, bm;
     int pos0, pos1; 
     double h0, h1, zb0, zb1;
     double2 q0, q1;
@@ -29,43 +62,89 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #if WBC==2
                     
 #else
-                No periodicas no implementadas en volumenes
+                    pos0 = pos1;
+                    pos1 = -1;
+                        
+                    h1 = h0 = reconsLh[pos0];
+                    zb1 = zb0 = reconsLzb[pos0];
+                    q1.x = q0.x = reconsLhu[pos0].x;
+                    q1.y = q0.y = reconsLhu[pos0].y;
+                        
+#if WBC==1
+                    q1.x = -q0.x;
+#endif
+#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+                    if(tiempo_act<d_tCC[timeCC-2]){
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,2*npx+npy+j);
+                        zb1=zb0;
+                    }
+                    else{ // Salida libre
+                        q1.x = q0.x;
+                    }
+#endif
+                    
+                    
+                    pos0 *=4;
+//                     pos1 *=4;
+                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0);                  
 #endif
                 }
                 else{
                     if(i==npx){
+#if WBC==2
                         pos1 = j*npx;
+                        h0 = reconsRh[pos0];
+                        zb0 = reconsRzb[pos0];
+                        q0.x = reconsRhu[pos0].x;
+                        q0.y = reconsRhu[pos0].y;
                         
-                        h0 = d_dVh[pos0];
-                        zb0 = d_dVH[pos0];
-                        q0.x = d_dVhu[pos0].x;
-                        q0.y = d_dVhu[pos0].y;
+                        h1 = reconsLh[pos1];
+                        zb1 = reconsLzb[pos1];
+                        q1.x = reconsLhu[pos1].x;
+                        q1.y = reconsLhu[pos1].y;
                         
-                        h1 = d_dVh[pos1];
-                        zb1 = d_dVH[pos1];
-                        q1.x = d_dVhu[pos1].x;
-                        q1.y = d_dVhu[pos1].y;
+                        pos1 *=4;
                         
+#else
+                        pos1 = -2;
+                        
+                        h1 = h0 = reconsRh[pos0];
+                        zb1 = zb0 = reconsRzb[pos0];
+                        q1.x = q0.x = reconsRhu[pos0].x;
+                        q1.y = q0.y = reconsRhu[pos0].y;
+                        
+#if WBC==1
+                        q1.x = -q0.x;
+#endif
+                        
+#endif
+#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+                    if(tiempo_act<d_tCC[timeCC-2]){
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+j);
+                        zb1=zb0;
+                    }
+                    else{ // Salida libre
+                        q1.x = q0.x;
+                    }
+#endif
                         pos0 *=4;
-                        pos1*=4;
-                        
+//                         pos1 *=4;
                         procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0);
                         
                     }
                     else{
-                        h0 = d_dVh[pos0];
-                        zb0 = d_dVH[pos0];
-                        q0.x = d_dVhu[pos0].x;
-                        q0.y = d_dVhu[pos0].y;
+                        h0 = reconsRh[pos0];
+                        zb0 = reconsRzb[pos0];
+                        q0.x = reconsRhu[pos0].x;
+                        q0.y = reconsRhu[pos0].y;
                         
-                        h1 = d_dVh[pos1];
-                        zb1 = d_dVH[pos1];
-                        q1.x = d_dVhu[pos1].x;
-                        q1.y = d_dVhu[pos1].y;
+                        h1 = reconsLh[pos1];
+                        zb1 = reconsLzb[pos1];
+                        q1.x = reconsLhu[pos1].x;
+                        q1.y = reconsLhu[pos1].y;
                         
                         pos0 *=4;
-                        pos1*=4;
-                        
+                        pos1 *=4;
                         procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0);
                     }
                 }
@@ -85,26 +164,72 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #if WBC==2
                     
 #else
-                No periodicas no implementadas en volumenes
+                    pos0 = pos1;
+                    pos1 = -1;
+                    h1 = h0 = reconsDh[pos0];
+                    zb1 = zb0 = reconsDzb[pos0];
+                    q1.x = q0.x = reconsDhu[pos0].x;
+                    q1.y = q0.y = reconsDhu[pos0].y;
+#if WBC==1
+                    q1.y = -q0.y;
+#endif
+                    
+#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+                    if(tiempo_act<d_tCC[timeCC-2]){
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,i);
+                        zb1=zb0;
+                                                
+//                         printf("%.15f    \n",h1);
+                    }
+                    else{ // Salida libre
+                        q1.x = q0.x;
+                    }
+#endif
+                    
+                    pos0 *=4;
+//                     pos1*=4;
+                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,-1);
 #endif
                 }
                 else{
                     if(j==npy){
+#if WBC==2                        
                         pos1 = i;
                         
-                        h0 = d_dVh[pos0];
-                        zb0 = d_dVH[pos0];
-                        q0.x = d_dVhu[pos0].x;
-                        q0.y = d_dVhu[pos0].y;
+                        h0 = reconsUh[pos0];
+                        zb0 = reconsUzb[pos0];
+                        q0.x = reconsUhu[pos0].x;
+                        q0.y = reconsUhu[pos0].y;
                         
-                        h1 = d_dVh[pos1];
-                        zb1 = d_dVH[pos1];
-                        q1.x = d_dVhu[pos1].x;
-                        q1.y = d_dVhu[pos1].y;
+                        h1 = reconsDh[pos1];
+                        zb1 = reconsDzb[pos1];
+                        q1.x = reconsDhu[pos1].x;
+                        q1.y = reconsDhu[pos1].y;
                         
-                        pos0 *=4;
                         pos1*=4;
                         
+#else
+                        pos1 = -2;
+                        h1 = h0 = reconsUh[pos0];
+                        zb1 = zb0 = reconsUzb[pos0];
+                        q1.x = q0.x = reconsUhu[pos0].x;
+                        q1.y = q0.y = reconsUhu[pos0].y;
+#if WBC==1
+                        q1.y = -q0.y;
+#endif
+                        
+#endif
+#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+                    if(tiempo_act<d_tCC[timeCC-2]){
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+npy+i);
+                        zb1=zb0;
+                    }
+                    else{ // Salida libre
+                        q1.x = q0.x;
+                    }
+#endif
+                        pos0 *=4;
+//                         pos1*=4;
                         procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1);
                         
                     }
@@ -121,7 +246,6 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                         
                         pos0 *=4;
                         pos1*=4;
-                        
                         procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1);
                     }
                 }
@@ -134,49 +258,22 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
     
 }
 
-__global__ void sum_contribuciones(double *d_Ah, double2 *d_Ahu, double *d_Azb, int npx, int npy, double delta_T, double dx, double dy, double epsilon_h, double vmax, double *FL, double *FR, double *FU, double *FD){
-    
-    int i,j;
-    
-    double invx, invy;
-    
-    invx = delta_T/dx;
-    invy = delta_T/dy;
 
-    i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
-	j = blockIdx.y*NUM_HEBRAS_ALTO_EST + threadIdx.y;
-    
-    
-    if ((i<npx) && (j<npy)) {
-        
-        int pos = j*npx + i;
-        int posF = pos*4;
-        
-        d_Ah[pos] -= invx*(FL[posF]+FR[posF])  + invy*(FD[posF]+FU[posF]);
-        d_Ahu[pos].x -= invx*(FL[posF+1]+FR[posF+1])  + invy*(FD[posF+1]+FU[posF+1]);
-        d_Ahu[pos].y -= invx*(FL[posF+2]+FR[posF+2]) + invy*(FD[posF+2]+FU[posF+2]);
-        d_Azb[pos] -= invx*(FL[posF+3]+FR[posF+3])  + invy*(FD[posF+3]+FU[posF+3]);
-        
-        
-        
-    }
-    
-}
 
-void aristas_volumenes(double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double *d_hx, double2 *d_hux, double *d_zbx, double *d_hy, double2 *d_huy, double *d_zby, double *FL, double *FR, double *FU, double *FD)
+inline void aristas_volumenes(double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC)
 {
     
     
     
     // Tamano del grid y de bloque en el procesamiento de aristas
 //     dim3 threadBlock(NUM_HEBRAS_ANCHO_ARI, NUM_HEBRAS_ALTO_ARI);
-    dim3 blockGridEst(iDivUp(npx, NUM_HEBRAS_ANCHO_EST), iDivUp(npy, NUM_HEBRAS_ALTO_EST));
+    dim3 blockGridEst(iDivUp(npx+1, NUM_HEBRAS_ANCHO_EST), iDivUp(npy+1, NUM_HEBRAS_ALTO_EST));
     dim3 threadBlockEst(NUM_HEBRAS_ANCHO_EST, NUM_HEBRAS_ALTO_EST);
     
     
-    volumenes<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, d_hx, d_hux, d_zbx, d_hy, d_huy, d_zby, FL, FR, FU, FD);
+    volumenes<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FR, FU, FD, d_CC, d_tCC, timeCC);
 
-    sum_contribuciones<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, npx, npy, delta_T, dx, dy, epsilon_h, vmax, FL, FR, FU, FD);
+//     sum_contribuciones<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, npx, npy, delta_T, dx, dy, epsilon_h, vmax, FL, FR, FU, FD);
     
 }
 #endif 

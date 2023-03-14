@@ -10,12 +10,12 @@ void aristas_alternas(double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_A
 {
     
     
-    
     // Tamano del grid y de bloque en el procesamiento de aristas
     dim3 blockGridVer1(iDivUp(num_aristas_ver1/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
     dim3 blockGridVer2(iDivUp(num_aristas_ver2/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
     dim3 blockGridHor1(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor1/npx, NUM_HEBRAS_ALTO_ARI));
     dim3 blockGridHor2(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor2/npx, NUM_HEBRAS_ALTO_ARI));
+
     dim3 threadBlock(NUM_HEBRAS_ANCHO_ARI, NUM_HEBRAS_ALTO_ARI);
     // Tamano del grid y bloques en el calculo del nuevo estado
     // 	dim3 blockGridEst(iDivUp(npx, NUM_HEBRAS_ANCHO_EST), iDivUp(npy, NUM_HEBRAS_ALTO_EST));

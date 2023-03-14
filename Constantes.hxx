@@ -18,16 +18,24 @@
 #define G                9.81
 #define EPS               1e-6 // Used for truncated velocity (divide)
 #define VMAX         10.0 //max velocity
+#define Re            6371e3  // Volumetric mean earth radius, for Haversine formula.
 
 
 #define model       0
 #define solver      0
 
-#define order       1
+#define UNITS       0.01  // Change units of the Initial condition to put it in SI (it doesn't change the bathymetry!!).
+
+
+#define order       2
 #define RK          1
 
-#define WBC         2  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
-#define SPL         0  // Sponge layer. It has to be >=0
+#define WBC         0  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
+#define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer.
+
+#define Read_bathy  1  // If 0, it doesn't read the bathymetry input file and take whatever it's in cini as initial condition for the bathymetry. If 1, it reads the bathymetry data from the input file and ignore any geometry input data (such as xmin or npy).
+#define Read_eta    1  // If 0, it reads the initial free surface and velocities from the cini file. If 1, it reads them from a file especified in data.
+#define interpolate 1   // If 1, it will interpolate the input file data to respect the number of points npx and npy from the data file. Otherwise it will use one element per data.
 
 using namespace std;
 

@@ -76,8 +76,8 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 //     check_err(iret);
 //     iret = nc_def_var(ncid, "grid_y", NC_DOUBLE, 1, &grid_y_dim, &grid_y_id);
 //     check_err(iret);
-//     grid_dims[0] = grid_y_dim;
-//     grid_dims[1] = grid_x_dim;
+    grid_dims[0] = y_dim;
+    grid_dims[1] = x_dim;
 //     iret = nc_def_var(ncid, "b", NC_DOUBLE, 2, grid_dims, &grid_id);
 //     check_err(iret);
     

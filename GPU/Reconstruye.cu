@@ -36,10 +36,30 @@ __device__ double minmod(double a, double b, double c)
     return d;
 }
 
+__device__ void aplica_fricciones(double2 &d_Ahu, double d0_dVh, double2 &d0_dVhu, double epsilon_h, double dt) {
+    
+    double h;
+    double2 q, u;
+    
+    h = d0_dVh;
+    q.x = d0_dVhu.x;
+    q.y = d0_dVhu.y;
+    
+    calculo_u(h,q,epsilon_h,u);
+    double modu = sqrt(u.x*u.x+u.y*u.y);
+    
+    double c = dt*d_FR*modu/(h+EPSILON);
+    
+    d_Ahu.x /= (1.0+c);
+    d_Ahu.y /= (1.0+c);
+        
+//         En fricciones se pone el modulo de la velocidad en c y se pone la misma friccion en x e y o bien se calcula cada friccion por separado con u.x e u,y
+    
+}
 
 
 
-__global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, double* d_hx, double* d_hy, double2* d_hux, double2* d_huy, double* d_zbx,double* d_zby, int npx, int npy, double delta_T, double inv_dx, double inv_dy, double epsilon_h,double2* d_Ahu) {
+__global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu,int npx, int npy, double delta_T, double inv_dx, double inv_dy, double epsilon_h,double2* d_Ahu, double *d0_dVh, double2 *d0_dVhu) {
 
 
     int i,j;
@@ -51,19 +71,12 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         pos = j*npx + i;
         
 #if order == 1
-//                     int pos0 = (j-1)*npx + i;
-//             int pos1 = j*npx + i;
-//             if(j==0) pos0=(npy-1)*npx +i;
-//             printf("%.15f \n", d_dVh[pos0]-d_dVh[pos1]);
-        d_hx[pos]=0.0;
-        d_zbx[pos]=0.0;
-        d_hux[pos].x=0.0;
-        d_hux[pos].y=0.0;
+
+        reconsLh[pos] = reconsRh[pos] = reconsUh[pos] = reconsDh[pos] = d_dVh[pos];
+        reconsLzb[pos] = reconsRzb[pos] = reconsUzb[pos] = reconsDzb[pos] = d_dVH[pos];
+        reconsLhu[pos].x = reconsRhu[pos].x = reconsUhu[pos].x = reconsDhu[pos].x = d_dVhu[pos].x;
+        reconsLhu[pos].y = reconsRhu[pos].y = reconsUhu[pos].y = reconsDhu[pos].y = d_dVhu[pos].y;
         
-        d_hy[pos]=0.0;
-        d_zby[pos]=0.0;
-        d_huy[pos].x=0.0;
-        d_huy[pos].y=0.0;
 #else   
  
         int posl,posr;
@@ -99,10 +112,12 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         // Reconstruccion de h
         dl = hi - hl;
         dr = hr - hi;
-        d_hx[pos] = avg(dl,dr);
-        if(0.5*fabs(d_hx[pos])>hi){
-            d_hx[pos] = 2.0*hi*SGN(d_hx[pos]);
+        double dh = avg(dl,dr);
+        if(0.5*fabs(dh)>hi){
+            dh = 2.0*hi*SGN(dh);
         }
+        reconsLh[pos] = hi - 0.5*dh;
+        reconsRh[pos] = hi + 0.5*dh;
         
         // Reconstruccion de eta y zb
         double zm;
@@ -111,7 +126,10 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         zm = min(Hr,Hi);
         dr = max(hr-Hr+zm,0.0) - max(hi-Hi+zm,0.0);
         deta = avg(dl,dr);
-        d_zbx[pos] = d_hx[pos] - deta;
+        double dz = dh - deta;
+        
+        reconsLzb[pos] = Hi - 0.5*dz;
+        reconsRzb[pos] = Hi + 0.5*dz;
         
         // Reconstruccion de u
         calculo_u(hi,d_dVhu[pos],epsilon_h,ui);
@@ -120,11 +138,18 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         dl = ui.x - ul.x;
         dr = ur.x - ui.x;
         du = avg(dl,dr);
-        d_hux[pos].x = hi*du + ui.x * d_hx[pos];
+        double dq = hi*du + ui.x * dh;
+        
+        reconsLhu[pos].x = d_dVhu[pos].x - 0.5*dq;
+        reconsRhu[pos].x = d_dVhu[pos].x + 0.5*dq;
+        
         dl = ui.y - ul.y;
         dr = ur.y - ui.y;
         du = avg(dl,dr);
-        d_hux[pos].y = hi*du + ui.y * d_hx[pos];
+        dq = hi*du + ui.y * dh;
+        
+        reconsLhu[pos].y = d_dVhu[pos].y - 0.5*dq;
+        reconsRhu[pos].y = d_dVhu[pos].y + 0.5*dq;
         
         // Integral
         d_Ahu[pos].x -= dta*G*hi*deta;
@@ -152,10 +177,12 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         // Reconstruccion de h
         dl = hi - hl;
         dr = hr - hi;
-        d_hy[pos] = avg(dl,dr);
-        if(0.5*fabs(d_hy[pos])>hi){
-            d_hy[pos] = 2.0*hi*SGN(d_hy[pos]);
+        dh = avg(dl,dr);
+        if(0.5*fabs(dh)>hi){
+            dh = 2.0*hi*SGN(dh);
         }
+        reconsDh[pos] = hi - 0.5*dh;
+        reconsUh[pos] = hi + 0.5*dh;
         
         
         // Reconstruccion de eta y zb
@@ -164,27 +191,45 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         zm = min(Hr,Hi);
         dr = max(hr-Hr+zm,0.0) - max(hi-Hi+zm,0.0);
         deta = avg(dl,dr);
-        d_zby[pos] = d_hy[pos] - deta;
+        dz = dh - deta;
         
+        reconsDzb[pos] = Hi - 0.5*dz;
+        reconsUzb[pos] = Hi + 0.5*dz;
         
+
         // Reconstruccion de u
         calculo_u(hl,d_dVhu[posl],epsilon_h,ul);
         calculo_u(hr,d_dVhu[posr],epsilon_h,ur);
         dl = ui.x - ul.x;
         dr = ur.x - ui.x;
         du = avg(dl,dr);
-        d_huy[pos].x = hi*du + ui.x * d_hy[pos];
+        dq = hi*du + ui.x * dh;
+        
+        reconsDhu[pos].x  = d_dVhu[pos].x - 0.5*dq;
+        reconsUhu[pos].x  = d_dVhu[pos].x + 0.5*dq;
+        
         dl = ui.y - ul.y;
         dr = ur.y - ui.y;
         du = avg(dl,dr);
-        d_huy[pos].y = hi*du + ui.y * d_hy[pos];
+        dq = hi*du + ui.y * dh;
+        
+        reconsDhu[pos].y  = d_dVhu[pos].y - 0.5*dq;
+        reconsUhu[pos].y  = d_dVhu[pos].y + 0.5*dq;
         
         // Integral
         d_Ahu[pos].y -= dta*G*hi*deta;
-
+        
+        
+        // Filtros
+        filtro_estado(reconsLh[pos],reconsLhu[pos],epsilon_h);
+        filtro_estado(reconsRh[pos],reconsRhu[pos],epsilon_h);
+        filtro_estado(reconsUh[pos],reconsUhu[pos],epsilon_h);
+        filtro_estado(reconsDh[pos],reconsDhu[pos],epsilon_h);
+        
         
 #endif
-        
+        // Fricciones
+        aplica_fricciones(d_Ahu[pos], d0_dVh[pos], d0_dVhu[pos], epsilon_h, delta_T);        
     }
 
 }

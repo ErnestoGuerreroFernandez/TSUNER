@@ -31,7 +31,7 @@ __device__ void calculo_u(double h, double2 q, double epsilon_h, double2& u) {
 
 
 
-__device__ void filtro_estado(double& h, double2& q , double epsilon_h, double vmax)
+__device__ void filtro_estado(double& h, double2& q , double epsilon_h)
 {
     double2 u;
     
