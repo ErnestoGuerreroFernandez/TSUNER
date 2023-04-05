@@ -21,7 +21,6 @@ __global__ void obtenerDeltaTVolumenesGPU(double* d_dVh, double2* d_dVhu, double
     i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
 	j = blockIdx.y*NUM_HEBRAS_ALTO_EST + threadIdx.y;
     
-//     printf("%d   %d  \n",npx,npy);
 
     if ((i<npx) && (j<npy)) {
         
@@ -38,9 +37,6 @@ __global__ void obtenerDeltaTVolumenesGPU(double* d_dVh, double2* d_dVhu, double
         ly=fabs(u.y)+cg;
 //         dt=CFL*0.5*dx*dy/(dy*lx+dx*ly+EPSILON);
         dt = CFL * 0.5 * min(dx/lx, dy/ly); 
-
-      
-//         printf("i = %d   %.15f  \n",pos,h);
         
         d_deltaTV[pos]=dt;
     }
@@ -90,26 +86,19 @@ __device__ void sponge_layerBottomAndTop(double* d_Ah, double2* d_Ahu, double *d
     posb = j*npx + i;
     post = npx*npy - i -j*npx -1;
     
-//     printf("%d \n",i);     
-//                     ht  =5.1*cos(2*PI*tiempo_act/50.0);
-//                 ht *=(ht>0.0);
-//                 ht += 1.0;
-//                     ht  =3.0*cos(2*PI*tiempo_act/5.0);
-//                 ht *=(ht>0.0);
-//                 ht += 1.0;
+
     double hb, hl, ht, hr;
     double2 qb, qt, qr, ql;
     double Hl, Hr, Ht, Hb;
     
 
     
-    // Bottom
-
-//         printf("%.15f \n",d_Ah[posb]);        
+    // Bottom       
         // Esquina inf izq y superior izq
         if(i<SPL){
             interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hb, Hb, qb, npx, npy, i);
             interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hl, Hl, ql, npx, npy, 2*npx+npy+j);
+            
             
             double aux = 0.5*(d[j]+d[i])*0.5;
             
@@ -121,7 +110,7 @@ __device__ void sponge_layerBottomAndTop(double* d_Ah, double2* d_Ahu, double *d
             interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, ht, Ht, qt, npx, npy, npx+npy+i);
             interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hl, Hl, ql, npx, npy, 2*npx+npy*2-j-1);
             
-            post =  npx*npy - npx - j*npx + i;
+            post =  npx*npy - (npx) - j*npx + i;
             
             d_Ah[post] = aux*(ht+hl) + (1.0-d[i])*d_Ah[post]*0.5 + (1.0-d[j])*d_Ah[post] *0.5 ;
             d_Ahu[post].x = aux*(qt.x+ql.x) + (1.0-d[i])*d_Ahu[post].x*0.5 + (1.0-d[j])*d_Ahu[post].x *0.5 ;
@@ -132,20 +121,21 @@ __device__ void sponge_layerBottomAndTop(double* d_Ah, double2* d_Ahu, double *d
         // Esquina inf drch y superior drch
         else if(i>npx-SPL){
             
-            interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hb, Hb, qb, npx, npy, npx-1-i);
+            interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hb, Hb, qb, npx, npy, i);
             interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hr, Hr, qr, npx, npy, npx+j);
 
             double aux = 0.5*(d[j]+d[npx-1-i])*0.5;
-            
-            posb = npx-1-i+j*npx;
+
             
             d_Ah[posb] = aux*(hb+hr) + (1.0-d[npx-1-i])*d_Ah[posb]*0.5 + (1.0-d[j])*d_Ah[posb] *0.5 ;
             d_Ahu[posb].x = aux*(qb.x+qr.x) + (1.0-d[npx-1-i])*d_Ahu[posb].x*0.5 + (1.0-d[j])*d_Ahu[posb].x *0.5 ;
             d_Ahu[posb].y = aux*(qb.y+qr.y) + (1.0-d[npx-1-i])*d_Ahu[posb].y*0.5 + (1.0-d[j])*d_Ahu[posb].y *0.5 ;
             d_Azb[posb] = aux*(Hb+Hr) + (1.0-d[npx-1-i])*d_Azb[posb]*0.5 + (1.0-d[j])*d_Azb[posb] *0.5 ;
             
-            interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, ht, Ht, qt, npx, npy, npx+npy+npx-1-i);
+            interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, ht, Ht, qt, npx, npy, npx+npy+i);
             interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hr, Hr, qr, npx, npy, npx+npy-1-j);
+            
+            post = (npy-1)*npx - j*npx + i;
             
             d_Ah[post] = aux*(ht+hr) + (1.0-d[npx-1-i])*d_Ah[post]*0.5 + (1.0-d[j])*d_Ah[post] *0.5 ;
             d_Ahu[post].x = aux*(qt.x+qr.x) + (1.0-d[npx-1-i])*d_Ahu[post].x*0.5 + (1.0-d[j])*d_Ahu[post].x *0.5 ;
@@ -157,17 +147,20 @@ __device__ void sponge_layerBottomAndTop(double* d_Ah, double2* d_Ahu, double *d
         else{
             
             interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, hb, Hb, qb, npx, npy, i);
-            interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, ht, Ht, qt, npx, npy, 2*npx+npy-1-i);
+            interpolate_timeSPL(CC, tCC, timeCC, tiempo_act, ht, Ht, qt, npx, npy, npx+npy+i);
 
             d_Ah[posb]    = d[j]*hb + (1.0-d[j])*d_Ah[posb];
             d_Ahu[posb].x = d[j]*qb.x + (1.0-d[j])*d_Ahu[posb].x;
             d_Ahu[posb].y = d[j]*qb.y + (1.0-d[j])*d_Ahu[posb].y;
             d_Azb[posb]   = d[j]*Hb + (1.0-d[j])*d_Azb[posb];
             
-            d_Ah[post]    = d[j]*ht + (1.0-d[j])*d_Ah[post];
-            d_Ahu[post].x = d[j]*qt.x + (1.0-d[j])*d_Ahu[post].x;
-            d_Ahu[post].y = d[j]*qt.y + (1.0-d[j])*d_Ahu[post].y;
-            d_Azb[post]   = d[j]*Ht + (1.0-d[j])*d_Azb[post];
+            
+            post = (npy-1)*npx - j*npx +i;
+            
+//             d_Ah[post]    = d[j]*ht + (1.0-d[j])*d_Ah[post];
+//             d_Ahu[post].x = d[j]*qt.x + (1.0-d[j])*d_Ahu[post].x;
+//             d_Ahu[post].y = d[j]*qt.y + (1.0-d[j])*d_Ahu[post].y;
+//             d_Azb[post]   = d[j]*Ht + (1.0-d[j])*d_Azb[post];
             
         }
 
@@ -308,55 +301,6 @@ __global__ void actualiza_estados(double* d_Ah, double2* d_Ahu, double *d_Azb, d
 }
 
 
-__global__ void borrar(double* d_Ah, double2* d_Ahu, double *d_Azb, double* d0_dVh, double2* d0_dVhu, double *d0_dVH, double* d_dVh, double2* d_dVhu, double *d_dVH, int npx, int npy, int k, double epsilon_h, double vmax, double dt)
-{
-    int i,j;
-    int pos;
-
-    i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
-	j = blockIdx.y*NUM_HEBRAS_ALTO_EST + threadIdx.y;
-
-    if ((i<npx) && (j<npy)) {
-        pos = j*npx + i;
-        
-        d_Ah[pos] += 1;
-        
-        
-//                                     int pos0 = (j-1)*npx + i;
-//             int pos1 = j*npx + i;
-//             if(j==0) pos0=(npy-1)*npx +i;
-//             printf("%.15f \n", d0_dVh[pos0]-d0_dVh[pos1]);
-        
-    }
-}
-
-
-
-__global__ void borrar2(double* d_Ah, double2* d_Ahu, double *d_Azb, double* d0_dVh, double2* d0_dVhu, double *d0_dVH, double* d_dVh, double2* d_dVhu, double *d_dVH, int npx, int npy, int k, double epsilon_h, double vmax, double dt)
-{
-    int i,j;
-//     int pos;
-
-    i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
-	j = blockIdx.y*NUM_HEBRAS_ALTO_EST + threadIdx.y;
-
-    if ((i<npx) && (j<npy)) {
-//         pos = j*npx + i;
-        
-//         d_Ah[pos] += 1;
-        
-                            int pos0 = (j-1)*npx + i;
-            int pos1 = j*npx + i;
-            if(j==0) pos0=(npy-1)*npx +i;
-            double aux;
-            aux = d_Ah[pos0]-d_Ah[pos1];
-            if(abs(aux)>1e-14){
-            printf("%d    %d   %.15f \n",i, j, aux);    
-            }
-            
-        
-    }
-}
 
 
 

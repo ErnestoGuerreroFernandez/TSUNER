@@ -124,48 +124,21 @@ __device__ void procesarArista(double hhl, double zb0, double2 qql,  double hhr,
         Dp[i] = 0.5*(df[i]+vis[i]) - F1[i];
     }
  
-//     if((pos_vol0<20 ) && normal_x>0){
-//         //         printf("pos0 = %d   %.15f    %.15f   %.15f  %.15f \n", pos_vol0, Dm[0], Dm[1], Dm[2], Dm[3]);
-//         //         printf("pos0 = %d   %.15f    %.15f   %.15f  %.15f \n", pos_vol0, Dp[0], Dp[1], Dp[2], Dp[3]);
-//         printf("pos0 = %d   %.15f    %.15f   %.15f  %.15f \n", pos_vol0, Dp[0], Dp[1], Dp[2], Dp[3]);
-//      
-//     }
-//     if((pos_vol1<pos_vol0 ) && normal_x>0){
-// //            printf("%d    %d   %.15f    %.15f   %.15f  %.15f \n", pos_vol0, pos_vol1, Dp[0], Dp[1], Dp[2], Dp[3]);
-//         printf("%d    %d   %.15f    %.15f   %.15f  %.15f \n", pos_vol0, pos_vol1, hhl, hhr, qql.x, qqr.x);
-// //         printf("sjkdfbasd");
-//     }
-// if(normal_y !=0 && (abs(Dm[1])>0  || abs(Dp[1])>0) ){
-//     printf("%d   %d   %.15f    %.15f    \n", pos_vol0, pos_vol1, Dm[1],Dp[1]);
-//     
-// }
-//     if(normal_y != 0 && (Dm[0] != 0 || Dm[1] != 0 || Dm[2] != 0 || Dm[3] != 0 || Dp[0] != 0 || Dp[1] != 0 || Dp[2] != 0)){
-// //         printf("Dm %d    %.15f      %.15f     %.15f   \n",pos_vol0, Dm[0],Dm[1],Dm[2]);
-// //         printf("Dp %d    %.15f      %.15f     %.15f   \n",pos_vol1, Dp[0],Dp[1],Dp[2]);
-// //         printf("%d    %.15f      %.15f     %.15f   \n",pos_vol0, vis[0],vis[1],vis[2]);
-// //         printf("%d    %.15f      %.15f     %.15f   \n",pos_vol0, df[0],df[1],df[2]);
-//         printf("%d    %.15f      %.15f     %.15f  %.15f   %.15f  %.15f   %.15f    %.15f  \n",pos_vol0, hhl,hhr,qql.x,qql.y,qqr.x,qqr.y,zb0,zb1);
-//     }
     
     d_Ah[pos_vol0]-=dtaux*Dm[0];
 
     d_Ahu[pos_vol0].x-=dtaux*(normal_x*Dm[1]-normal_y*Dm[2]);
     d_Ahu[pos_vol0].y-=dtaux*(normal_y*Dm[1]+normal_x*Dm[2]);
     
-//     d_Ahu[pos_vol0].x-=dtaux*(Dm[1]);
-//     d_Ahu[pos_vol0].y-=dtaux*(Dm[2]);
     
     d_Azb[pos_vol0] -=dtaux*Dm[3];
     
     #if WBC==2
-    d_Ah[pos_vol1]-=dtaux*Dp[0];
-    
+    d_Ah[pos_vol1]-=dtaux*Dp[0];    
     d_Ahu[pos_vol1].x-=dtaux*(normal_x*Dp[1]-normal_y*Dp[2]);
-    d_Ahu[pos_vol1].y-=dtaux*(normal_y*Dp[1]+normal_x*Dp[2]);
-//     d_Ahu[pos_vol1].x-=dtaux*(Dp[1]);
-//     d_Ahu[pos_vol1].y-=dtaux*(Dp[2]);
-    
+    d_Ahu[pos_vol1].y-=dtaux*(normal_y*Dp[1]+normal_x*Dp[2]);    
     d_Azb[pos_vol1] -= dtaux*Dp[3];    
+    
     #else
     
     if (pos_vol1 != -1) {
@@ -193,13 +166,7 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
     int frontera=0;
     pos1=-1;
     
-    // Multiplicamos i por 2 porque se procesan aristas alternas
-//     i = 2*(blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x);
-//     j = blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y;
-//     if (tipo == 2){
-//       i++;  
-//     } 
-//     printf("%d  \n",tipo);
+
     if(tipo==1){
         i = 2*(blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x);
         j = blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y;
@@ -208,8 +175,7 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
         i = 2*(blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x) + 1;
         j = blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y;
     }
-//     if(j==0) printf("%d  \n",tipo);
-     
+
     
     if ((i <= npx) && (j < npy)) {
         if (i == 0) {

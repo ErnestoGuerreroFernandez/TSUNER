@@ -52,9 +52,7 @@ __device__ void aplica_fricciones(double2 &d_Ahu, double d0_dVh, double2 &d0_dVh
     
     d_Ahu.x /= (1.0+c);
     d_Ahu.y /= (1.0+c);
-        
-//         En fricciones se pone el modulo de la velocidad en c y se pone la misma friccion en x e y o bien se calcula cada friccion por separado con u.x e u,y
-    
+            
 }
 
 
@@ -153,6 +151,10 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         
         // Integral
         d_Ahu[pos].x -= dta*G*hi*deta;
+        
+#if RK==0
+        double Tpx = G*hi*deta;
+#endif
 
         
         // **********************
@@ -218,6 +220,67 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         
         // Integral
         d_Ahu[pos].y -= dta*G*hi*deta;
+        
+#if RK==0
+        double Tpy = G*hi*deta;
+#endif
+        
+                
+#if RK==0            
+        double2 uRR, uL, uU, uD;
+        calculo_u(reconsRh[pos],reconsRhu[pos],epsilon_h,uRR);
+        calculo_u(reconsLh[pos],reconsLhu[pos],epsilon_h,uL);
+        calculo_u(reconsUh[pos],reconsUhu[pos],epsilon_h,uU);
+        calculo_u(reconsDh[pos],reconsDhu[pos],epsilon_h,uD);
+    
+        double qhx, qhy;
+        qhx = (reconsRhu[pos].x-reconsLhu[pos].x) *inv_dx;
+        qhy = (reconsUhu[pos].y-reconsDhu[pos].y) *inv_dy;
+        
+        
+        // MUSCL-Hancock
+        reconsLh[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsRh[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsDh[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsUh[pos] -= 0.5 * delta_T * (qhx + qhy);
+        
+
+        qhx = (reconsRhu[pos].x*uRR.x-reconsLhu[pos].x*uL.x)*inv_dx;
+        qhy = (reconsUhu[pos].x*uU.y-reconsDhu[pos].x*uD.y)*inv_dy;
+        reconsLhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
+        reconsRhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
+        reconsDhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
+        reconsUhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
+        
+
+        qhx = (reconsRhu[pos].x*uRR.y - reconsLhu[pos].x*uL.y) *inv_dx;
+        qhy = (reconsUhu[pos].y*uU.y - reconsDhu[pos].y*uD.y) *inv_dy;
+        reconsLhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
+        reconsRhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
+        reconsDhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
+        reconsUhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
+        
+        
+        qhx = (bedload(reconsRh[pos],uRR)-bedload(reconsLh[pos],uL))*inv_dx;
+        qhy = (bedload(reconsUh[pos],uU)-bedload(reconsDh[pos],uD))*inv_dy;
+        reconsLzb[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsRzb[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsDzb[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsUzb[pos] -= 0.5 * delta_T * (qhx + qhy);
+        
+        
+        
+        reconsLhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
+        reconsUhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
+        reconsDhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
+        reconsRhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
+        
+        reconsLhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
+        reconsUhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
+        reconsDhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
+        reconsRhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
+
+#endif   
         
         
         // Filtros

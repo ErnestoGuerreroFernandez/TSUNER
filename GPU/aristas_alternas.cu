@@ -25,35 +25,18 @@ void aristas_alternas(double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_A
     procesarAristasVerGPU<<<blockGridVer1, threadBlock>>>(d_dVH, d_dVh, d_dVhu, d_hx, d_hux, d_zbx,npx, npy, delta_T, d_Ah, d_Ahu, d_Azb, dx, tiempo_act, 1, epsilon_h, vmax, tiempo_act);
     cudaDeviceSynchronize();
     
-    
-    
-    
-    // fprintf(stdout,"ANTES ---------------------------------------  \n");
-    // borrar2<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, vmax,delta_T);   
-    // cudaDeviceSynchronize();
+
     procesarAristasVerGPU<<<blockGridVer2, threadBlock>>>(d_dVH, d_dVh, d_dVhu, d_hx, d_hux, d_zbx,npx, npy, delta_T, d_Ah, d_Ahu, d_Azb, dx, tiempo_act, 2, epsilon_h,vmax, tiempo_act);
     cudaDeviceSynchronize();
     
-    // fprintf(stdout,"DESPUES --------------------------------------- \n");
-    // borrar2<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, vmax,delta_T);   
-    // cudaDeviceSynchronize();
+
     
     
     //             Procesamos las aristas horizontales
     procesarAristasHorGPU<<<blockGridHor1, threadBlock>>>(d_dVH, d_dVh, d_dVhu, d_hy, d_huy, d_zby,npx, npy,delta_T, d_Ah, d_Ahu, d_Azb, dy, tiempo_act, 1, epsilon_h,vmax, tiempo_act);
-    //            cudaDeviceSynchronize();
+
     procesarAristasHorGPU<<<blockGridHor2, threadBlock>>>(d_dVH, d_dVh, d_dVhu, d_hy, d_huy, d_zby,npx, npy,delta_T, d_Ah, d_Ahu, d_Azb, dy, tiempo_act, 2, epsilon_h, vmax, tiempo_act);
-    //                       cudaDeviceSynchronize(); 
-    
-    //             aplica_fricciones<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d0_dVh, d0_dVhu,npx, npy,epsilon_h, delta_T,tiempo_act);
-    //                             borrar2<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, vmax,delta_T);            
-    //                       if(niters>1){
-    //                           tiempo_act=10000;
-    // 
-    //                     }
-    //                     niters++;
-    //             borrar<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, vmax,delta_T);
-    //             borrar2<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, vmax,delta_T);
+//        borrar2<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, vmax,delta_T);
     
 }
 #endif

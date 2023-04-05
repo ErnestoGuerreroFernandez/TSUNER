@@ -9,7 +9,7 @@
 extern "C" int comprobarSoporteCUDA(int cudaDevice);
 extern "C" void inicializarGPU();
 
-extern "C" int Lava(double *dVh, double2 *dVhu, double *dVH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice);
+extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice);
 
 /*********************/
 /* Fin funciones GPU */
@@ -81,13 +81,13 @@ int main(int argc, char *argv[])
     d = new double [SPL]();
         for (int i=0; i<SPL; i++){
             d[i] = (double(SPL-i)/double(SPL))*(double(SPL-i)/double(SPL));
-//             d[i] = 1.0;
+            d[i] = 1.0;
         }
 #endif
 
 
 
-	err = Lava(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
+	err = Exner(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
 	if (err > 0) {
 		if (err == 1)
 			cerr << "Error: No hay memoria GPU suficiente" << endl;

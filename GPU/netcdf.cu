@@ -188,9 +188,9 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	// Atributos globales
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 6, "CF-1.0");
 	check_err(iret);
-	iret = nc_put_att_text(ncid, NC_GLOBAL, "title", 27, "LavaFlow-HySEA model output");
+	iret = nc_put_att_text(ncid, NC_GLOBAL, "title", 28, "Exner NOAA PMEL model output");
 	check_err(iret);
-	iret = nc_put_att_text(ncid, NC_GLOBAL, "creator_name", 12, "MTM2015-70490");
+	iret = nc_put_att_text(ncid, NC_GLOBAL, "creator_name", 26, "Ernesto Guerrero Fernandez");
 	check_err(iret);
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "institution", 6, "UMA");
 	check_err(iret);

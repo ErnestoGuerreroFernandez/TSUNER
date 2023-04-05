@@ -24,6 +24,10 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
     h1 = m*tiempo_act+b;
     h1*=UNITS;
 
+    m = (CC[posCCp+3]-CC[posCC+3])/(tCC[tp]-tCC[t]);
+    b = CC[posCC+3] - m*tCC[t];
+    zb1 = m*tiempo_act+b;
+    
     h1 += zb1;    
 
     m = (CC[posCCp+1]-CC[posCC+1])/(tCC[tp]-tCC[t]);
@@ -76,16 +80,14 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,2*npx+npy+j);
-                        zb1=zb0;
                     }
                     else{ // Salida libre
                         q1.x = q0.x;
                     }
 #endif
                     
-                    
                     pos0 *=4;
-//                     pos1 *=4;
+
                     procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0);                  
 #endif
                 }
@@ -121,14 +123,14 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+j);
-                        zb1=zb0;
+//                         zb1=zb0;
                     }
                     else{ // Salida libre
                         q1.x = q0.x;
                     }
 #endif
+
                         pos0 *=4;
-//                         pos1 *=4;
                         procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0);
                         
                     }
@@ -177,17 +179,13 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,i);
-                        zb1=zb0;
-                                                
-//                         printf("%.15f    \n",h1);
                     }
                     else{ // Salida libre
-                        q1.x = q0.x;
+                        q1.y = q0.y;
                     }
 #endif
                     
                     pos0 *=4;
-//                     pos1*=4;
                     procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,-1);
 #endif
                 }
@@ -222,14 +220,15 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+npy+i);
-                        zb1=zb0;
                     }
                     else{ // Salida libre
-                        q1.x = q0.x;
+                        q1.y = q0.y;
                     }
 #endif
+// h1= 2.0*cos(2*PI*tiempo_act/5.0);
+// q1.y = h1*q1.y/h0;
                         pos0 *=4;
-//                         pos1*=4;
+
                         procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1);
                         
                     }

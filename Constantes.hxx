@@ -25,17 +25,18 @@
 #define solver      0
 
 #define UNITS       0.01  // Change units of the Initial condition to put it in SI (it doesn't change the bathymetry!!).
+#define SEDIMENT    1   //If 0, the bedload doesn't move. The model is then equivalent to standar SW. If 1, it moves normally.
 
 
 #define order       2
-#define RK          1
+#define RK          1  // If RK==1, perform Runge-Kutta. If 0, perfoms MUSCL-Hancook
 
-#define WBC         0  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
-#define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer.
+#define WBC         1  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
+#define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer. Leave at 0, Sponge Layer with >0 not implemented.
 
-#define Read_bathy  1  // If 0, it doesn't read the bathymetry input file and take whatever it's in cini as initial condition for the bathymetry. If 1, it reads the bathymetry data from the input file and ignore any geometry input data (such as xmin or npy).
-#define Read_eta    1  // If 0, it reads the initial free surface and velocities from the cini file. If 1, it reads them from a file especified in data.
-#define interpolate 1   // If 1, it will interpolate the input file data to respect the number of points npx and npy from the data file. Otherwise it will use one element per data.
+#define Read_bathy  0  // If 0, it doesn't read the bathymetry input file and take whatever it's in cini as initial condition for the bathymetry. If 1, it reads the bathymetry data from the input file and ignore any geometry input data (such as xmin or npy).
+#define Read_eta    0  // If 0, it reads the initial free surface and velocities from the cini file. If 1, it reads them from a file especified in data.
+#define interpolate 0   // If 1, it will interpolate the input file data to respect the number of points npx and npy from the data file. Otherwise it will use one element per data.
 
 using namespace std;
 

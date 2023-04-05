@@ -53,12 +53,18 @@ void leerTamanoMallaGRD(const char *nombre_fich,int *nvx, int *nvy) {
 	iret = nc_inq_dimid(id, "lon", &lon_dim);
 	if (iret != NC_NOERR) {
 		iret = nc_inq_dimid(id, "x", &lon_dim);
+	}
+	if (iret != NC_NOERR) {
+		iret = nc_inq_dimid(id, "LON", &lon_dim);
 		check_errGRD(iret);
 	}
 	iret = nc_inq_dimid(id, "lat", &lat_dim);
 	if (iret != NC_NOERR) {
 		iret = nc_inq_dimid(id, "y", &lat_dim);
-		check_errGRD(iret);
+	}
+	if (iret != NC_NOERR) {
+		iret = nc_inq_dimid(id, "LAT", &lat_dim);
+        check_errGRD(iret);
 	}
 	iret = nc_inq_dimlen(id, lon_dim, &nx);
 	check_errGRD(iret);
@@ -82,6 +88,9 @@ void leerLongitudGRD(double *lon, int flag=0)
 	iret = nc_inq_varid(id, "lon", &lon_id);
 	if (iret != NC_NOERR) {
 		iret = nc_inq_varid(id, "x", &lon_id);
+	}
+    if (iret != NC_NOERR) {
+		iret = nc_inq_varid(id, "LON", &lon_id);
 		check_errGRD(iret);
 	}
 	iret = nc_get_var_double(id, lon_id, lon);
@@ -102,6 +111,9 @@ void leerLatitudGRD(double *lat, int flag=0)
 	iret = nc_inq_varid(id, "lat", &lat_id);
 	if (iret != NC_NOERR) {
 		iret = nc_inq_varid(id, "y", &lat_id);
+	}
+    if (iret != NC_NOERR) {
+		iret = nc_inq_varid(id, "LAT", &lat_id);
 		check_errGRD(iret);
 	}
 	iret = nc_get_var_double(id, lat_id, lat);
@@ -131,14 +143,31 @@ void leerCI_GRD(double *ci, long unsigned int &time)
     
     
     //     long unsigned int time;
-    nc_inq_dimid(ncid_CI, "time", &dimId);
-    nc_inq_dimlen(ncid_CI, dimId, &time);
+    iret = nc_inq_dimid(ncid_CI, "time", &dimId);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_dimid(ncid_CI, "TIME", &dimId);
+		check_errGRD(iret);
+    }
+    check_errGRD(iret);
+    iret = nc_inq_dimlen(ncid_CI, dimId, &time);
+    check_errGRD(iret);
     
-    nc_inq_dimid(ncid_CI, "lat", &dimId);
-    nc_inq_dimlen(ncid_CI, dimId, &num_voly);
+    iret = nc_inq_dimid(ncid_CI, "lat", &dimId);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_dimid(ncid_CI, "LAT", &dimId);
+		check_errGRD(iret);
+    }
+
+    iret = nc_inq_dimlen(ncid_CI, dimId, &num_voly);
+    check_errGRD(iret);
     
-    nc_inq_dimid(ncid_CI, "lon", &dimId);
-    nc_inq_dimlen(ncid_CI, dimId, &num_volx);
+    iret = nc_inq_dimid(ncid_CI, "lon", &dimId);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_dimid(ncid_CI, "LON", &dimId);
+		check_errGRD(iret);
+    }
+    iret = nc_inq_dimlen(ncid_CI, dimId, &num_volx);
+    check_errGRD(iret);
     
 	static size_t start[3] = {0, 0, 0};
 	static size_t count[3] = {time, num_voly, num_volx};
@@ -152,7 +181,12 @@ void leerCI_GRD(double *ci, long unsigned int &time)
 
 	id = ncid_CI;
 	iret = nc_inq_varid(id, "ha_lc", &z_id);
-	check_errGRD(iret);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_varid(id, "HA", &z_id);
+		check_errGRD(iret);
+    }
+//     iret = nc_def_var_fill(id,z_id,NC_FILL, -1e-20);
+    check_errGRD(iret);
 	iret = nc_get_vara_double(id, z_id, start, count, aux);
 	check_errGRD(iret);
     
@@ -160,12 +194,11 @@ void leerCI_GRD(double *ci, long unsigned int &time)
     for (int i=0; i<num_volx; i++) 
         for(int j=0;j<num_voly; j++)
             {
-                ci[j*num_volx+i] = aux[ j*num_volx+i];
-//                 printf("%.15f  \n",ci[j*num_volx+i]);
+                ci[j*num_volx+i] = aux[j*num_volx+i];
             }
     
     delete [] aux;
-//     exit(-1);
+
 }
 
 
@@ -305,7 +338,7 @@ void interpolate_fun(double *bathy, double *p, int npx, int npy, int npx_grd, in
 }
 
 
-void interpolate_CI(double *bathy, double *p, int npx, int npy, int npx_grd, int npy_grd, double xmin, double xmax, double ymin, double ymax, double xmin_CI, double xmax_CI, double ymin_CI, double ymax_CI, int npx_grd_CI, int npy_grd_CI){
+void interpolate_CI(double *bathy, double *p, int npx, int npy, int npx_grd, int npy_grd, double xmin, double xmax, double ymin, double ymax, double xmin_CI, double xmax_CI, double ymin_CI, double ymax_CI, int npx_grd_CI, int npy_grd_CI, double *H){
     
     double x,y;
     double dx,dy;
@@ -381,8 +414,12 @@ void interpolate_CI(double *bathy, double *p, int npx, int npy, int npx_grd, int
             N8 = L1(xt)*L2(yt);
             N9 = L2(xt)*L2(yt);        
 
+
         
             p[posp] = bathy[posLD]*N1 + bathy[posD]*N2 + bathy[posRD]*N3 + bathy[posL]*N4 + bathy[pos]*N5 + bathy[posR]*N6 + bathy[posLU]*N7 + bathy[posU]*N8 + bathy[posRU]*N9; 
+            
+            if(p[posp]<-1e20) p[posp] = H[posp];
+            if(p[posp]>1e20) p[posp] = H[posp];
             
         }    
     }
@@ -413,20 +450,37 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 	
 	int iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
 
-    nc_inq_dimid(idu, "lat", &dimId);
-    nc_inq_dimlen(idu, dimId, &npy_grd);
+    iret = nc_inq_dimid(idu, "lat", &dimId);
+        if (iret != NC_NOERR) {
+        iret = nc_inq_dimid(idu, "LAT", &dimId);
+		check_errGRD(iret);
+    }
+    iret = nc_inq_dimlen(idu, dimId, &npy_grd);
+    check_errGRD(iret);
     
-    nc_inq_dimid(idu, "lon", &dimId);
-    nc_inq_dimlen(idu, dimId, &npx_grd);
+    iret = nc_inq_dimid(idu, "lon", &dimId);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_dimid(idu, "LON", &dimId);
+		check_errGRD(iret);
+    }
+    iret = nc_inq_dimlen(idu, dimId, &npx_grd);
+    check_errGRD(iret);
     
-    nc_inq_dimid(idu, "time", &dimId);
-//     nc_inq_dimlen(idu, dimId, &tCC);
+    iret = nc_inq_dimid(idu, "time", &dimId);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_dimid(idu, "TIME", &dimId);
+		check_errGRD(iret);
+    }
+    check_errGRD(iret);
     
     static size_t start_t[1] = {0};
 	static size_t count_t[1] = {time};
     
     iret = nc_inq_varid(idu, "time", &var_id);
-	check_errGRD(iret);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_varid(idu, "TIME", &var_id);
+		check_errGRD(iret);
+    }
 	iret = nc_get_vara_double(idu, var_id, start_t, count_t, tCC);
 	check_errGRD(iret);
     
@@ -444,7 +498,10 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     
     
     iret = nc_inq_varid(idu, "ua_lc", &var_id);
-	check_errGRD(iret);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_varid(idu, "UA", &var_id);
+		check_errGRD(iret);
+    }
 	iret = nc_get_vara_double(idu, var_id, start, count, fhu);
 	check_errGRD(iret);
     iret = nc_close(idu);
@@ -457,7 +514,10 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 	iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
 	check_errGRD(iret);
     iret = nc_inq_varid(idu, "va_lc", &var_id);
-	check_errGRD(iret);
+    if (iret != NC_NOERR) {
+        iret = nc_inq_varid(idu, "VA", &var_id);
+		check_errGRD(iret);
+    }
 	iret = nc_get_vara_double(idu, var_id, start, count, fhv);
 	check_errGRD(iret);
     iret = nc_close(idu);
@@ -465,7 +525,10 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 
     
 	iret = nc_inq_varid(id, "ha_lc", &var_id);
-	check_errGRD(iret);
+    if (iret != NC_NOERR) {
+	iret = nc_inq_varid(id, "HA", &var_id);
+		check_errGRD(iret);
+    }
 	iret = nc_get_vara_double(id, var_id, start, count, fh);
 	check_errGRD(iret);
 
@@ -505,6 +568,13 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+i*4+2] = N0 * fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+i*4+3] = H[i];
             
+            if(CC[posC+i*4]<-1e20) CC[posC+i*4] = H[i]; 
+            if(CC[posC+i*4+1]<-1e20) CC[posC+i*4+1] = 0.0; 
+            if(CC[posC+i*4+2]<-1e20) CC[posC+i*4+2] = 0.0;
+            if(CC[posC+i*4]>1e20) CC[posC+i*4] = H[i]; 
+            if(CC[posC+i*4+1]>1e20) CC[posC+i*4+1] = 0.0; 
+            if(CC[posC+i*4+2]>1e20) CC[posC+i*4+2] = 0.0;
+            
             // Frontera sup
             y = ymax - 0.5*dy *0;
             j_grid = int((y - ymin_CI - 0.5*dy_grid)/dy_grid);
@@ -517,6 +587,13 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(npx+npy+i)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
             CC[posC+(npx+npy+i)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+(npx+npy+i)*4+3] = H[(npy-1)*npx+i];
+            
+            if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
+            if(CC[posC+(npx+npy+i)*4+1]<-1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
+            if(CC[posC+(npx+npy+i)*4+2]<-1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
+            if(CC[posC+(npx+npy+i)*4]>1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
+            if(CC[posC+(npx+npy+i)*4+1]>1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
+            if(CC[posC+(npx+npy+i)*4+2]>1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
             
 
         }
@@ -538,6 +615,14 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(2*npx+npy+j)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+(2*npx+npy+j)*4+3] = H[j*npx];
             
+            if(CC[posC+(2*npx+npy+j)*4]<-1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
+            if(CC[posC+(2*npx+npy+j)*4+1]<-1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
+            if(CC[posC+(2*npx+npy+j)*4+2]<-1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
+            if(CC[posC+(2*npx+npy+j)*4]>1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
+            if(CC[posC+(2*npx+npy+j)*4+1]>1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
+            if(CC[posC+(2*npx+npy+j)*4+2]>1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
+            
+            
             // Frontera drch
             x = xmax - 0.5*dx *0;
             i_grid = int((x - xmin_CI - 0.5*dx_grid)/dx_grid);
@@ -550,6 +635,13 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(npx+j)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
             CC[posC+(npx+j)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+(npx+j)*4+3] = H[j*npx+npx-1];
+            
+            if(CC[posC+(npx+j)*4]<-1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
+            if(CC[posC+(npx+j)*4+1]<-1e20) CC[posC+(npx+j)*4+1] = 0.0; 
+            if(CC[posC+(npx+j)*4+2]<-1e20) CC[posC+(npx+j)*4+2] = 0.0;
+            if(CC[posC+(npx+j)*4]>1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
+            if(CC[posC+(npx+j)*4+1]>1e20) CC[posC+(npx+j)*4+1] = 0.0; 
+            if(CC[posC+(npx+j)*4+2]>1e20) CC[posC+(npx+j)*4+2] = 0.0;
         }
         
     }
@@ -735,6 +827,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
 		return 2;
 	}
 	
+	
 
     leerBatimetriaGRD(npx_grd, npy_grd, read_aux1);
 #if Read_eta==1
@@ -742,6 +835,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     leerCI_GRD(read_aux2, time_grid);
     int npx_grd_CI, npy_grd_CI;
     leerTamanoMallaGRD((char *) file_eta.c_str(),&npx_grd_CI, &npy_grd_CI);
+//     leerTamanoMallaGRD((char *) file_eta.c_str(),&npx_grd_CI, &npy_grd_CI);
     double *xp_CI;
     double *yp_CI;
     xp_CI=new double[npx_grd_CI];
@@ -773,13 +867,14 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     interpolate_fun(read_aux1,inter_aux1,npx,npy,npx_grd,npy_grd,xmin_bathy,xmax_bathy,ymin_bathy,ymax_bathy);
 #endif
 #if (Read_eta==1 && interpolate==1)
-    interpolate_CI(read_aux2,inter_aux2,npx,npy,npx_grd_CI,npy_grd_CI,xmin_bathy,xmax_bathy,ymin_bathy,ymax_bathy,xmin_CI,xmax_CI,ymin_CI,ymax_CI, npx_grd_CI, npy_grd_CI);
+    interpolate_CI(read_aux2,inter_aux2,npx,npy,npx_grd_CI,npy_grd_CI,xmin_bathy,xmax_bathy,ymin_bathy,ymax_bathy,xmin_CI,xmax_CI,ymin_CI,ymax_CI, npx_grd_CI, npy_grd_CI,inter_aux1);
 #endif
 #if Read_eta==1
     interpolate_CC(file_eta, (*CC), (*tCC), npx, npy, xmin_bathy, xmax_bathy, ymin_bathy, ymax_bathy, time_grid, xmin_CI,xmax_CI,ymin_CI,ymax_CI, inter_aux1);
     cerrarGRD(ncid_CI);
 #endif
 cerrarGRD(ncid_bati);
+    
 
     for (j=0; j<npy; j++) {
         for (i=0; i<npx; i++) {
