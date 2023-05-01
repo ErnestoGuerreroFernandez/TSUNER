@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
         cudaDevice=0;
     }
 	if (! existeFichero(fich_ent)) {
-		cerr << "Error: No se ha encontrado el fichero '" << fich_ent << "'" << endl;
+		cerr << "Error: Folder not found. '" << fich_ent << "'" << endl;
 		return EXIT_FAILURE;
 	}
 
@@ -55,11 +55,11 @@ int main(int argc, char *argv[])
 	soporteCUDA = comprobarSoporteCUDA(cudaDevice);
     switch(soporteCUDA) {
         case 1:
-            cerr << "Error: No hay tarjeta grafica" << endl;
+            cerr << "Error: There is no GPU" << endl;
             return EXIT_FAILURE;
             break;
         case 2:
-            cerr << "Error: No hay ninguna tarjeta grafica que soporte CUDA" << endl;
+            cerr << "Error: There is no GPU that supports CUDA" << endl;
             return EXIT_FAILURE;
             break;
         case 3:
@@ -90,18 +90,18 @@ int main(int argc, char *argv[])
 	err = Exner(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
 	if (err > 0) {
 		if (err == 1)
-			cerr << "Error: No hay memoria GPU suficiente" << endl;
+			cerr << "Error: Not enough GPU memory" << endl;
 		else if (err == 2)
-			cerr << "Error: No hay memoria CPU suficiente" << endl;
+			cerr << "Error: Not enough CPU memory" << endl;
 		liberarMemoria(dVh,dVhu,dVH);
 		return EXIT_FAILURE;
 	}
-	cout << endl << "Tiempo: " << tiempo_gpu << " seg." << endl;
+	cout << endl << "Total simulation time: " << tiempo_gpu << " sec." << endl;
 	liberarMemoria(dVh, dVhu, dVH);
 #if SPL>0
     delete [] d;
 #endif
-    cout<<"Fin Normal."<<endl;
+    cout<<"Normal End."<<endl;
 
 	return EXIT_SUCCESS;
 }

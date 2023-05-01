@@ -18,14 +18,15 @@
 #define G                9.81
 #define EPS               1e-6 // Used for truncated velocity (divide)
 #define VMAX         10.0 //max velocity
-#define Re            6371e3  // Volumetric mean earth radius, for Haversine formula.
+#define Re            6371e3  // Volumetric mean earth radius.
 
 
 #define model       0
 #define solver      0
+#define Manning     0 // Use Manning friction. Only use if SEDIMENT=0
 
 #define UNITS       0.01  // Change units of the Initial condition to put it in SI (it doesn't change the bathymetry!!).
-#define SEDIMENT    1   //If 0, the bedload doesn't move. The model is then equivalent to standar SW. If 1, it moves normally.
+#define SEDIMENT    0   //If 0, the bedload doesn't move. The model is then equivalent to standar SW. If 1, it moves normally.
 
 
 #define order       2
@@ -34,9 +35,7 @@
 #define WBC         1  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
 #define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer. Leave at 0, Sponge Layer with >0 not implemented.
 
-#define Read_bathy  0  // If 0, it doesn't read the bathymetry input file and take whatever it's in cini as initial condition for the bathymetry. If 1, it reads the bathymetry data from the input file and ignore any geometry input data (such as xmin or npy).
-#define Read_eta    0  // If 0, it reads the initial free surface and velocities from the cini file. If 1, it reads them from a file especified in data.
-#define interpolate 0   // If 1, it will interpolate the input file data to respect the number of points npx and npy from the data file. Otherwise it will use one element per data.
+#define Read_files  1  // If 1, it reads the initial condition, bathymetry and boundary conditions from the files in data.dat. If 0, it reads the initial condition from the functions defined in cini.cxx.
 
 using namespace std;
 

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <netcdf.h>
 #include "cini.cxx"
-
+#include "interpolations.cxx"
 
 int ncid_bati;
 int ncid_CI;
@@ -233,426 +233,6 @@ void liberarMemoria(double *dVh,double2 *dVhu, double* dVH)
 }
 
 
-inline double L0(double x){
-    return x/2.0*(x-1);    
-}
-inline double L1(double x){
-    return 1-x*x;    
-}
-inline double L2(double x){
-    return x/2.0*(x+1);    
-}
-
-inline double dy_transform(double phi1, double phi2){
-    return 2*Re*(phi2-phi1)/2.0 *PI/180;
-}
-
-inline double dx_transform(double alpha1, double alpha2, double phi){
-    return 2*Re*asin( sqrt( cos(phi*PI/180)*cos(phi*PI/180)*sin(0.5*(alpha2-alpha1)*PI/180) *sin(0.5*(alpha2-alpha1)*PI/180) )  );
-}
-
-
-
-void interpolate_fun(double *bathy, double *p, int npx, int npy, int npx_grd, int npy_grd, double xmin, double xmax, double ymin, double ymax){
-    
-    double x,y;
-    double dx,dy;
-    double dx_grid, dy_grid;
-    double xt, yt;
-    int i_grid, j_grid;
-    double N1,N2,N3,N4,N5,N6,N7,N8,N9;
-    
-    dx = (xmax-xmin)/npx;
-    dy = (ymax-ymin)/npy;
-    
-
-    dx_grid = (xmax-xmin)/npx_grd;
-    dy_grid = (ymax-ymin)/npy_grd;
-    
-    for (int j=0; j<npy; j++){
-        for (int i=0; i<npx; i++){
-            int pos, posp;
-            int posL, posR, posU, posD, posLU, posLD, posRU, posRD;
-            
-            x = xmin + 0.5*dx + i*dx;
-            y = ymin + 0.5*dy + j*dy;
-        
-            xt = 1.0/(xmax-xmin)*(2*x-(xmax+xmin));
-            yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
-        
-
-            i_grid = int((x - xmin - 0.5*dx_grid)/dx_grid);
-            j_grid = int((y - ymin - 0.5*dy_grid)/dy_grid);
-            
-            pos = j_grid*npx_grd + i_grid;
-            posp = j*npx +i;
-        
-            posL = pos-1;
-            posR = pos+1;
-            posU = pos+npx_grd;
-            posD = pos-npx_grd;
-            posLU = posU-1;
-            posLD = posD-1;
-            posRU = posU+1;
-            posRD = posD+1;
-        
-            if(i_grid==0){
-                posL=pos;
-                posLU=pos;
-                posLD=pos;
-            }
-            if(i_grid==npx_grd-1){
-                posR=pos;
-                posRD=pos;
-                posRU=pos;
-            }
-                
-            if(j_grid==0){
-                posD=pos;
-                posLD=pos;
-                posRD=pos;
-            }
-                
-            if(j_grid==npy_grd-1){
-                posU=pos;
-                posLU=pos;
-                posRU=pos;
-            }
-                
-        
-            N1 = L0(xt)*L0(yt);
-            N2 = L1(xt)*L0(yt);
-            N3 = L2(xt)*L0(yt);
-            N4 = L0(xt)*L1(yt);
-            N5 = L1(xt)*L1(yt);
-            N6 = L2(xt)*L1(yt);
-            N7 = L0(xt)*L2(yt);
-            N8 = L1(xt)*L2(yt);
-            N9 = L2(xt)*L2(yt);        
-
-        
-            p[posp] = bathy[posLD]*N1 + bathy[posD]*N2 + bathy[posRD]*N3 + bathy[posL]*N4 + bathy[pos]*N5 + bathy[posR]*N6 + bathy[posLU]*N7 + bathy[posU]*N8 + bathy[posRU]*N9; 
-            
-        }    
-    }
-}
-
-
-void interpolate_CI(double *bathy, double *p, int npx, int npy, int npx_grd, int npy_grd, double xmin, double xmax, double ymin, double ymax, double xmin_CI, double xmax_CI, double ymin_CI, double ymax_CI, int npx_grd_CI, int npy_grd_CI, double *H){
-    
-    double x,y;
-    double dx,dy;
-    double dx_grid, dy_grid;
-    double xt, yt;
-    int i_grid, j_grid;
-    double N1,N2,N3,N4,N5,N6,N7,N8,N9;
-    
-    dx = (xmax-xmin)/npx;
-    dy = (ymax-ymin)/npy;
-    
-    dx_grid = (xmax_CI-xmin_CI)/npx_grd_CI;
-    dy_grid = (ymax_CI-ymin_CI)/npy_grd_CI;
-    
-    for (int j=0; j<npy; j++){
-        for (int i=0; i<npx; i++){
-            int pos, posp;
-            int posL, posR, posU, posD, posLU, posLD, posRU, posRD;
-            
-            x = xmin + 0.5*dx + i*dx;
-            y = ymin + 0.5*dy + j*dy;
-        
-            xt = 1.0/(xmax-xmin)*(2*x-(xmax+xmin));
-            yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
-        
-
-            i_grid = int((x - xmin_CI - 0.5*dx_grid)/dx_grid);
-            j_grid = int((y - ymin_CI - 0.5*dy_grid)/dy_grid);
-            
-            pos = j_grid*npx_grd + i_grid;
-            posp = j*npx +i;
-        
-            posL = pos-1;
-            posR = pos+1;
-            posU = pos+npx_grd;
-            posD = pos-npx_grd;
-            posLU = posU-1;
-            posLD = posD-1;
-            posRU = posU+1;
-            posRD = posD+1;
-        
-            if(i_grid==0){
-                posL=pos;
-                posLU=pos;
-                posLD=pos;
-            }
-            if(i_grid==npx_grd-1){
-                posR=pos;
-                posRD=pos;
-                posRU=pos;
-            }
-                
-            if(j_grid==0){
-                posD=pos;
-                posLD=pos;
-                posRD=pos;
-            }
-                
-            if(j_grid==npy_grd-1){
-                posU=pos;
-                posLU=pos;
-                posRU=pos;
-            }
-                
-        
-            N1 = L0(xt)*L0(yt);
-            N2 = L1(xt)*L0(yt);
-            N3 = L2(xt)*L0(yt);
-            N4 = L0(xt)*L1(yt);
-            N5 = L1(xt)*L1(yt);
-            N6 = L2(xt)*L1(yt);
-            N7 = L0(xt)*L2(yt);
-            N8 = L1(xt)*L2(yt);
-            N9 = L2(xt)*L2(yt);        
-
-
-        
-            p[posp] = bathy[posLD]*N1 + bathy[posD]*N2 + bathy[posRD]*N3 + bathy[posL]*N4 + bathy[pos]*N5 + bathy[posR]*N6 + bathy[posLU]*N7 + bathy[posU]*N8 + bathy[posRU]*N9; 
-            
-            if(p[posp]<-1e20) p[posp] = H[posp];
-            if(p[posp]>1e20) p[posp] = H[posp];
-            
-        }    
-    }
-}
-
-
-void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, double xmin, double xmax, double ymin, double ymax, long unsigned int time, double xmin_CI, double xmax_CI, double ymin_CI, double ymax_CI, double *H){
-    
-    
-    double x,y;
-    double dx,dy;
-    double dx_grid, dy_grid;
-    double xt, yt;
-    int i_grid, j_grid;
-    int idu;
-    int var_id, dimId;
-	int id = ncid_CI;
-    long unsigned int npx_grd, npy_grd;
-    
-
-    double *fh, *fhu, *fhv;
-    
-
-	
-    // We build the file XXXu.nc
-    file.erase(file.end()-4);
-    file.insert(file.end()-3,'u');
-	
-	int iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
-
-    iret = nc_inq_dimid(idu, "lat", &dimId);
-        if (iret != NC_NOERR) {
-        iret = nc_inq_dimid(idu, "LAT", &dimId);
-		check_errGRD(iret);
-    }
-    iret = nc_inq_dimlen(idu, dimId, &npy_grd);
-    check_errGRD(iret);
-    
-    iret = nc_inq_dimid(idu, "lon", &dimId);
-    if (iret != NC_NOERR) {
-        iret = nc_inq_dimid(idu, "LON", &dimId);
-		check_errGRD(iret);
-    }
-    iret = nc_inq_dimlen(idu, dimId, &npx_grd);
-    check_errGRD(iret);
-    
-    iret = nc_inq_dimid(idu, "time", &dimId);
-    if (iret != NC_NOERR) {
-        iret = nc_inq_dimid(idu, "TIME", &dimId);
-		check_errGRD(iret);
-    }
-    check_errGRD(iret);
-    
-    static size_t start_t[1] = {0};
-	static size_t count_t[1] = {time};
-    
-    iret = nc_inq_varid(idu, "time", &var_id);
-    if (iret != NC_NOERR) {
-        iret = nc_inq_varid(idu, "TIME", &var_id);
-		check_errGRD(iret);
-    }
-	iret = nc_get_vara_double(idu, var_id, start_t, count_t, tCC);
-	check_errGRD(iret);
-    
-    
-    static size_t start[3] = {0, 0, 0};
-	static size_t count[3] = {time, npy_grd, npx_grd};
-    
-    fhu=new double[time*npx_grd*npy_grd]();
-    fhv=new double[time*npx_grd*npy_grd]();
-    fh=new double[time*npx_grd*npy_grd]();
-    if (fh == NULL) {
-		cerr << "Error: No hay memoria CPU suficiente" << endl;
-		exit(-1);
-	}
-    
-    
-    iret = nc_inq_varid(idu, "ua_lc", &var_id);
-    if (iret != NC_NOERR) {
-        iret = nc_inq_varid(idu, "UA", &var_id);
-		check_errGRD(iret);
-    }
-	iret = nc_get_vara_double(idu, var_id, start, count, fhu);
-	check_errGRD(iret);
-    iret = nc_close(idu);
-	check_errGRD(iret);
-    
-    // We build the file XXXv.nc
-    file.erase(file.end()-4);
-    file.insert(file.end()-3,'v');
-	
-	iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
-	check_errGRD(iret);
-    iret = nc_inq_varid(idu, "va_lc", &var_id);
-    if (iret != NC_NOERR) {
-        iret = nc_inq_varid(idu, "VA", &var_id);
-		check_errGRD(iret);
-    }
-	iret = nc_get_vara_double(idu, var_id, start, count, fhv);
-	check_errGRD(iret);
-    iret = nc_close(idu);
-	check_errGRD(iret);
-
-    
-	iret = nc_inq_varid(id, "ha_lc", &var_id);
-    if (iret != NC_NOERR) {
-	iret = nc_inq_varid(id, "HA", &var_id);
-		check_errGRD(iret);
-    }
-	iret = nc_get_vara_double(id, var_id, start, count, fh);
-	check_errGRD(iret);
-
-//     for (int i=0; i<npx_grd; i++)
-//     printf("%d   %.15f  \n",i,fh[i]);
-//                 printf("%d   %d  %d %.15f  %.15f  %.15f     \n",i,i_grid, j_grid, y, ymin_CI, dy_grid);
-    
-    dx = (xmax-xmin)/npx;
-    dy = (ymax-ymin)/npy;
-    
-    dx_grid = (xmax_CI-xmin_CI)/npx_grd;
-    dy_grid = (ymax_CI-ymin_CI)/npy_grd;
-    
-    for (int t=0; t<time; t++){
-        int pos, pos0, pos1;
-        int posC = t*(2*npx+2*npy)*4;
-        double N0, N1, N2;
-        for (int i=0; i<npx; i++){
-            x = xmin + 0.5*dx + i*dx;
-            y = ymin + 0.5*dy *0;
-            xt = 1.0/(xmax-xmin)*(2*x-(xmax+xmin));
-            
-            N0 = L0(xt);
-            N1 = L1(xt);
-            N2 = L2(xt);
-            
-            i_grid = int((x - xmin_CI - 0.5*dx_grid)/dx_grid);
-            j_grid = int((y - ymin_CI - 0.5*dy_grid)/dy_grid);
-            
-            // Frontera inf
-            pos = t*npx_grd*npy_grd + npx_grd*j_grid + i_grid;
-            pos0 = pos-1*(i_grid>0);
-            pos1 = pos+1*(i_grid<npx_grd-1);
-            
-            CC[posC+i*4] = N0 * fh[pos0] + N1*fh[pos] + N2*fh[pos1];
-            CC[posC+i*4+1] = N0 * fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
-            CC[posC+i*4+2] = N0 * fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
-            CC[posC+i*4+3] = H[i];
-            
-            if(CC[posC+i*4]<-1e20) CC[posC+i*4] = H[i]; 
-            if(CC[posC+i*4+1]<-1e20) CC[posC+i*4+1] = 0.0; 
-            if(CC[posC+i*4+2]<-1e20) CC[posC+i*4+2] = 0.0;
-            if(CC[posC+i*4]>1e20) CC[posC+i*4] = H[i]; 
-            if(CC[posC+i*4+1]>1e20) CC[posC+i*4+1] = 0.0; 
-            if(CC[posC+i*4+2]>1e20) CC[posC+i*4+2] = 0.0;
-            
-            // Frontera sup
-            y = ymax - 0.5*dy *0;
-            j_grid = int((y - ymin_CI - 0.5*dy_grid)/dy_grid);
-            pos = t*npx_grd*npy_grd + (j_grid)*npx_grd + i_grid;
-            pos0 = pos-1*(i_grid>0);
-            pos1 = pos+1*(i_grid<npx_grd-1);
-            
-            
-            CC[posC+(npx+npy+i)*4]   = N0*fh[pos0] + N1*fh[pos] + N2*fh[pos1];
-            CC[posC+(npx+npy+i)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
-            CC[posC+(npx+npy+i)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
-            CC[posC+(npx+npy+i)*4+3] = H[(npy-1)*npx+i];
-            
-            if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
-            if(CC[posC+(npx+npy+i)*4+1]<-1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
-            if(CC[posC+(npx+npy+i)*4+2]<-1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
-            if(CC[posC+(npx+npy+i)*4]>1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
-            if(CC[posC+(npx+npy+i)*4+1]>1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
-            if(CC[posC+(npx+npy+i)*4+2]>1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
-            
-
-        }
-        for (int j=0; j<npy; j++){
-            y = ymin + 0.5*dy + j*dy;
-            x = xmin + 0.5*dx *0;
-            yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
-            
-            i_grid = int((x - xmin_CI - 0.5*dx_grid)/dx_grid);
-            j_grid = int((y - ymin_CI - 0.5*dy_grid)/dy_grid);
-            
-            // Frontera izq
-            pos = t*npx_grd*npy_grd + j_grid*npx_grd + i_grid;
-            pos0 = pos-npx_grd*(j_grid>0);
-            pos1 = pos+npx_grd*(j_grid<npy_grd-1);
-            
-            CC[posC+(2*npx+npy+j)*4]   = N0*fh[pos0] + N1*fh[pos] + N2*fh[pos1];
-            CC[posC+(2*npx+npy+j)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
-            CC[posC+(2*npx+npy+j)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
-            CC[posC+(2*npx+npy+j)*4+3] = H[j*npx];
-            
-            if(CC[posC+(2*npx+npy+j)*4]<-1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
-            if(CC[posC+(2*npx+npy+j)*4+1]<-1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
-            if(CC[posC+(2*npx+npy+j)*4+2]<-1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
-            if(CC[posC+(2*npx+npy+j)*4]>1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
-            if(CC[posC+(2*npx+npy+j)*4+1]>1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
-            if(CC[posC+(2*npx+npy+j)*4+2]>1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
-            
-            
-            // Frontera drch
-            x = xmax - 0.5*dx *0;
-            i_grid = int((x - xmin_CI - 0.5*dx_grid)/dx_grid);
-            pos = t*npx_grd*npy_grd + j_grid*npx_grd + i_grid;
-            pos0 = pos-npx_grd*(j_grid>0);
-            pos1 = pos+npx_grd*(j_grid<npy_grd-1);
-            
-            
-            CC[posC+(npx+j)*4]   = N0*fh[pos0] + N1*fh[pos] + N2*fh[pos1];
-            CC[posC+(npx+j)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
-            CC[posC+(npx+j)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
-            CC[posC+(npx+j)*4+3] = H[j*npx+npx-1];
-            
-            if(CC[posC+(npx+j)*4]<-1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
-            if(CC[posC+(npx+j)*4+1]<-1e20) CC[posC+(npx+j)*4+1] = 0.0; 
-            if(CC[posC+(npx+j)*4+2]<-1e20) CC[posC+(npx+j)*4+2] = 0.0;
-            if(CC[posC+(npx+j)*4]>1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
-            if(CC[posC+(npx+j)*4+1]>1e20) CC[posC+(npx+j)*4+1] = 0.0; 
-            if(CC[posC+(npx+j)*4+2]>1e20) CC[posC+(npx+j)*4+2] = 0.0;
-        }
-        
-    }
-
-
-    delete [] fh;
-    delete [] fhu;
-    delete [] fhv;
-}
-
-
 
 
 // Devuelve 0 si todo ha ido bien, 1 si no existe algun fichero, y 2 si no hay memoria CPU suficiente
@@ -726,91 +306,23 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     fich >> file_eta;
 	fich.close();
     
-    //     SPL=5;  // Sponge layer
+#if Manning ==0
     FR/=8.0; //Chezy law
+#endif
     HQB=5.0*DS;
     Q=DS*sqrt(G*(R-1.0)*DS)/(1.0-porosity);
     Opar=FR/((R-1.0)*G*DS);
     
-#if Read_bathy==1
+#if Read_files==1
+    
+//     npx+=2*SPL;
+//     npy+=2*SPL;
     
     // Reservamos memoria
-    double *read_aux1;
-    double *read_aux2;
-    
-    abrirbatiGRD((char *) file_bat.c_str());
-
-    int npx_grd, npy_grd;
-//     unsigned long int time_grid;
-
-    leerTamanoMallaGRD((char *) file_bat.c_str(),&npx_grd, &npy_grd);
-    double *xp;
-    double *yp;
-    xp=new double[npx_grd];
-    yp=new double[npy_grd];
-    leerLongitudGRD(xp);
-    leerLatitudGRD(yp);
-    double xmin_bathy, xmax_bathy, ymin_bathy, ymax_bathy;
-    xmin_bathy=xp[0];
-    xmax_bathy=xp[npx_grd-1];
-    ymin_bathy=yp[0];
-    ymax_bathy=yp[npy_grd-1];
-    // Convertimos lat y longitud en distancia para sacar el dx,dy.
-    //dy
-    dy = dy_transform(yp[0],yp[1]);
-    dx = dx_transform(xp[0],xp[1],yp[0]);
-//     dy = 2*Re*(yp[1]-yp[0])/2.0 *PI/180;
-//     dx = 2*Re*asin( sqrt( cos(yp[0]*PI/180)*cos(yp[0]*PI/180)*sin(0.5*(xp[1]-xp[0])*PI/180) *sin(0.5*(xp[1]-xp[0])*PI/180) )  );
-
-    delete[] xp;
-    delete[] yp;
-
-    npx+=2*SPL;
-    npy+=2*SPL;
-    xmin_bathy-=SPL*(xmax_bathy-xmin_bathy)/(npx);
-    ymin_bathy-=SPL*(ymax_bathy-ymin_bathy)/(npy);
-    xmax_bathy+=SPL*(xmax_bathy-xmin_bathy)/(npx);
-    ymax_bathy+=SPL*(ymax_bathy-ymin_bathy)/(npy);;
-    
-#if interpolate==0
-    npx=npx_grd;
-    npy=npy_grd;
-#endif
-    
-    if ((npx != npx_grd || npy!= npy_grd) && (interpolate==0 && (Read_bathy==1 || Read_eta==1))){
-        printf("You have set not to interpolate, but the number of points in data does not match the number of points in the reading file. Either set interpolation to 1 or set a proper number of points in data.dat. End of program");
-        return 2;
-    }
-
-    
-    // Descomentar esto
-    xmin = 0.0;
-    xmax = xmin + npx*dx;
-    ymin = 0.0;
-    ymax = ymin + npy*dy;
-
+    double *bathy_interpolated, *eta_interpolated;
     nvol = npx*npy;
-
-
-    
-  //Quitar esto  
-//     dx=(xmax-xmin)/(npx);
-//     dy=(ymax-ymin)/(npy);
-//     
-//     xmin_bathy=xmin;
-//     xmax_bathy=xmax;
-//     ymin_bathy=ymin;
-//     ymax_bathy=ymax;
-
-//     
-    int nvol_grd=npx_grd*npy_grd;
-
-    read_aux1=new double[nvol_grd];
-    read_aux2=new double[nvol_grd];
-    
-    double *inter_aux1, *inter_aux2;
-    inter_aux1=new double[nvol]();
-    inter_aux2=new double[nvol]();
+    bathy_interpolated=new double[nvol]();
+    eta_interpolated=new double[nvol]();
     
 
     *dVhu = new double2 [nvol]();
@@ -819,41 +331,74 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         
 	if (*dVH == NULL) {
 		cerr << "Error: No hay memoria CPU suficiente" << endl;
-        if (read_aux1 != NULL) delete[] read_aux1;
-        if (read_aux2 != NULL) delete[] read_aux2;
-        if (inter_aux1 != NULL) delete[] inter_aux1;
-        if (inter_aux2 != NULL) delete[] inter_aux2;
+        if (bathy_interpolated != NULL) delete[] bathy_interpolated;
+        if (eta_interpolated != NULL) delete[] eta_interpolated;
  		liberarMemoria(*dVh,*dVhu,*dVH);
 		return 2;
 	}
 	
-	
 
-    leerBatimetriaGRD(npx_grd, npy_grd, read_aux1);
-#if Read_eta==1
+
+    // ********************   Bathy     
+    abrirbatiGRD((char *) file_bat.c_str());
+    int npx_grd, npy_grd;
+    leerTamanoMallaGRD((char *) file_bat.c_str(),&npx_grd, &npy_grd);
+    double *xp;
+    double *yp;
+    xp=new double[npx_grd];
+    yp=new double[npy_grd];
+    leerLongitudGRD(xp);
+    leerLatitudGRD(yp);
+    
+    double *bathy_aux;
+    bathy_aux=new double[npx_grd*npy_grd];
+    if (bathy_aux == NULL) {
+        cerr << "Error: No hay memoria CPU suficiente" << endl;
+        delete[] bathy_aux;
+        return 2;
+    }
+    leerBatimetriaGRD(npx_grd, npy_grd, bathy_aux);  // Bathymetry read from file, no interpolation.
+    double dx_grid, dy_grid;
+    dx_grid = (xp[npx_grd-1]-xp[0])/(npx_grd-1);
+    dy_grid = (yp[npy_grd-1]-yp[0])/(npy_grd-1);
+    xmin = xp[0] - 0.5*dx_grid;
+    xmax = xp[npx_grd-1] + 0.5*dx_grid;
+    ymin = yp[0] - 0.5*dy_grid;
+    ymax = yp[npy_grd-1] + 0.5*dy_grid;
+    interpolate_spherics(xmin,xmax,ymin,ymax, xmin,ymin, npx_grd, npy_grd, dx_grid, dy_grid, npx, npy, bathy_aux, bathy_interpolated);
+    delete[] bathy_aux;
+    
+
+    
+    // ********************   CI 
     abrirCI_GRD(file_eta.c_str());
-    leerCI_GRD(read_aux2, time_grid);
     int npx_grd_CI, npy_grd_CI;
     leerTamanoMallaGRD((char *) file_eta.c_str(),&npx_grd_CI, &npy_grd_CI);
-//     leerTamanoMallaGRD((char *) file_eta.c_str(),&npx_grd_CI, &npy_grd_CI);
     double *xp_CI;
     double *yp_CI;
     xp_CI=new double[npx_grd_CI];
     yp_CI=new double[npy_grd_CI];
     leerLongitudGRD(xp_CI,1);
     leerLatitudGRD(yp_CI,1);
-    double xmin_CI, xmax_CI, ymin_CI, ymax_CI;
-    xmin_CI=xp_CI[0];
-    xmax_CI=xp_CI[npx_grd_CI-1];
-    ymin_CI=yp_CI[0];
-    ymax_CI=yp_CI[npy_grd_CI-1];
+    
+    double *eta_aux;
+    eta_aux=new double[npx_grd_CI*npy_grd_CI];
+    if (eta_aux == NULL) {
+        cerr << "Error: No hay memoria CPU suficiente" << endl;
+        delete[] eta_aux;
+        return 2;
+    }
 
-    
-    delete[] xp_CI;
-    delete[] yp_CI;
-    
-    
-    
+    leerCI_GRD(eta_aux, time_grid);  // Free surface read from file, no interpolation.
+    double dx_CI, dy_CI;
+    dx_CI = (xp_CI[npx_grd_CI-1]-xp_CI[0])/npx_grd_CI;
+    dy_CI = (yp_CI[npy_grd_CI-1]-yp_CI[0])/npy_grd_CI;
+
+    interpolate_spherics(xmin,xmax,ymin,ymax, xp_CI[0], yp_CI[0], npx_grd_CI, npy_grd_CI, dx_CI, dy_CI, npx, npy, eta_aux, eta_interpolated);
+    fix_eta(eta_interpolated, bathy_interpolated, npx, npy);
+    delete [] eta_aux;
+
+    // ********************** CC
     *tCC=new double [time_grid]();
     *CC = new double [(2*npx+2*npy)*4*time_grid]();
     if (*CC == NULL) {
@@ -861,61 +406,70 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         liberarMemoria(*dVh,*dVhu,*dVH);
         return 2;
     }
+    interpolate_CC(file_eta, (*CC), (*tCC), npx, npy, xmin, xmax, ymin, ymax,  xp_CI[0], yp_CI[0],  time_grid, dx_CI, dy_CI, bathy_interpolated, ncid_CI);
+
+
+    // ******************************* Pasamos de esfericas a cartesianas.
+    dx = (xmax-xmin)/(npx);
+    dy = (ymax-ymin)/npy;
     
-#endif    
-#if interpolate==1
-    interpolate_fun(read_aux1,inter_aux1,npx,npy,npx_grd,npy_grd,xmin_bathy,xmax_bathy,ymin_bathy,ymax_bathy);
-#endif
-#if (Read_eta==1 && interpolate==1)
-    interpolate_CI(read_aux2,inter_aux2,npx,npy,npx_grd_CI,npy_grd_CI,xmin_bathy,xmax_bathy,ymin_bathy,ymax_bathy,xmin_CI,xmax_CI,ymin_CI,ymax_CI, npx_grd_CI, npy_grd_CI,inter_aux1);
-#endif
-#if Read_eta==1
-    interpolate_CC(file_eta, (*CC), (*tCC), npx, npy, xmin_bathy, xmax_bathy, ymin_bathy, ymax_bathy, time_grid, xmin_CI,xmax_CI,ymin_CI,ymax_CI, inter_aux1);
+    double dyE, *dxE, dy_unidad, dmax;
+    dxE = new double[npy]();
+    
+    dy_transform(dy_unidad);
+    dx_transform(ymin,dy,npy, xmax, xmin, dxE, dx, dmax);
+    
+    xmin = 0; 
+    xmax = dmax;
+    ymax = dy_unidad*(ymax-ymin);
+    ymin = 0;
+
+    dyE = dy*dy_unidad;
+    // ******************************* Bathy
+    double *bathy_interpolated_spheric;
+    bathy_interpolated_spheric = new double[nvol]();
+    spheric2cartesian(xmin, xmax, ymin, ymax, dxE, dyE, npx, npy, bathy_interpolated, bathy_interpolated_spheric);
+    delete [] bathy_interpolated;
+
+    // ******************************* eta
+    double *eta_interpolated_spheric;
+    eta_interpolated_spheric = new double[nvol]();
+    spheric2cartesian(xmin, xmax, ymin, ymax, dxE, dyE, npx, npy, eta_interpolated, eta_interpolated_spheric);
+    delete [] eta_interpolated;
+
+    // ******************************* CC
+    spheric2cartesian_CC(xmin, xmax, ymin, ymax, dxE, dyE, npx, npy, time_grid, (*CC));
+
+
+    delete[] xp;
+    delete[] yp;
+    delete[] dxE;
     cerrarGRD(ncid_CI);
-#endif
-cerrarGRD(ncid_bati);
+    cerrarGRD(ncid_bati);
+    
+    dx = (xmax-xmin)/(npx);
+    dy = (ymax-ymin)/npy;
     
 
     for (j=0; j<npy; j++) {
         for (i=0; i<npx; i++) {
             pos=j*npx+i;
-#if interpolate==1
-            (*dVH)[pos]=(double) (inter_aux1[pos]) ;
-#else
-            (*dVH)[pos]=(double) (read_aux1[pos]);
-#endif
-//              printf("%d  %d   %.15f \n",i,j,(*dVH)[pos]);
-#if Read_eta==0   
-            double x,y;
-            x = xmin + 0.5*dx + i*dx;
-            y = ymin + 0.5*dy + j*dy;
-            (*dVh)[pos] = h_inicial(x,y,(*dVH)[pos]) + (*dVH)[pos];
-            velocidad(x,y,(*dVhu)[pos]);
-            (*dVhu)[pos].x *= (*dVh)[pos];
-            (*dVhu)[pos].y *= (*dVh)[pos];
-#else
-#if interpolate==0
-            (*dVh)[pos] = (double) (read_aux2[pos]) *UNITS + (*dVH)[pos];
-#else
-            (*dVh)[pos] = (double) (inter_aux2[pos]) *UNITS + (*dVH)[pos];
-//             (*dVh)[pos] =1.0;
-#endif
-//                          printf("%d  %d   %.15f \n",i,j,inter_aux2[pos]);
+            (*dVH)[pos] = (double) (bathy_interpolated_spheric[pos]) ;
+            (*dVh)[pos] = (double) (eta_interpolated_spheric[pos]) *UNITS + (*dVH)[pos];
+
+// if(i==0) cout<<(*dVH)[pos]<<endl;
             (*dVh)[pos] *= ((*dVh)[pos]>=0.0);
             (*dVhu)[pos].x = 0.0;
             (*dVhu)[pos].y = 0.0;            
-#endif
         }         
     }
-    delete[] read_aux1;
-    delete[] read_aux2;
-    delete[] inter_aux1;
-    delete[] inter_aux2;
- 
+
     
-// return 2;
-    
-#else  // Del Read_bathy==1
+    delete[] bathy_interpolated_spheric;
+    delete[] eta_interpolated_spheric;
+//  exit(-1);
+
+#else  // Del Read_files==1
     
     dx=(xmax-xmin)/(npx);
     dy=(ymax-ymin)/(npy);

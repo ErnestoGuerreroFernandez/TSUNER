@@ -50,8 +50,15 @@ __device__ void aplica_fricciones(double2 &d_Ahu, double d0_dVh, double2 &d0_dVh
     
     double c = dt*d_FR*modu/(h+EPSILON);
     
+#if Manning ==1
+    c = dt*d_FR*d_FR*modu/(pow(h,4.0/3.0));
+    d_Ahu.x *= (c);
+    d_Ahu.y *= (c);
+#else
     d_Ahu.x /= (1.0+c);
     d_Ahu.y /= (1.0+c);
+#endif    
+    
             
 }
 

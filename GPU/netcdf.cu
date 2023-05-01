@@ -48,7 +48,7 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 
 	// Creamos el fichero y entramos en modo definición
 
-    sprintf(nombre_fich, "%s_sol.nc", prefijo);
+    sprintf(nombre_fich, "%s.nc", prefijo);
 	iret = nc_create(nombre_fich, NC_CLOBBER, p_ncid);
 	check_err(iret);
 	ncid = *p_ncid;

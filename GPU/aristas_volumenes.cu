@@ -77,7 +77,7 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #if WBC==1
                     q1.x = -q0.x;
 #endif
-#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+#if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,2*npx+npy+j);
                     }
@@ -120,7 +120,7 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #endif
                         
 #endif
-#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+#if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+j);
 //                         zb1=zb0;
@@ -176,7 +176,7 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                     q1.y = -q0.y;
 #endif
                     
-#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+#if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,i);
                     }
@@ -217,7 +217,7 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #endif
                         
 #endif
-#if (Read_eta==1 && SPL<=0 && Read_bathy==1)  // Enforcing
+#if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+npy+i);
                     }
@@ -225,7 +225,8 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                         q1.y = q0.y;
                     }
 #endif
-// h1= 2.0*cos(2*PI*tiempo_act/5.0);
+
+// h1= 4.0*cos(2*PI*tiempo_act/5.0);
 // q1.y = h1*q1.y/h0;
                         pos0 *=4;
 

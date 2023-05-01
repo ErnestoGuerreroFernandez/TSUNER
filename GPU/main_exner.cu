@@ -210,7 +210,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
     err += cudaMalloc((void **)&FU, tam_datosVolDouble*4);
     err += cudaMalloc((void **)&FD, tam_datosVolDouble*4);
     
-#if (Read_eta==1 && Read_bathy==1)
+#if (Read_files==1)
     err+=cudaMalloc((void **)&d_CC, (2*npx+2*npy)*4*timeCC*sizeof(double));
     err+=cudaMalloc((void **)&d_tCC, timeCC*sizeof(double));
 #endif
@@ -313,7 +313,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
     // CALCULO DEL DELTA_T INICIAL
     obtenerDeltaTVolumenesGPU<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_deltaTV, npx, npy,dx, dy,CFL, epsilon_h);
     delta_T = obtenerMinimoReduccion<double>(d_deltaTV, nvol);
-    fprintf(stdout, "deltaT inicial = %e seg\n", delta_T);
+    fprintf(stdout, "Initial deltaT = %e sec\n", delta_T);
     
 
     iter = 1;
@@ -371,8 +371,8 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
 
             delta_T = obtenerMinimoReduccion<double>(d_deltaTV, nvol);
             
-            fprintf(stdout, "Iteracion %3d, deltaT = %e seg, ", iter, delta_T);
-            fprintf(stdout, "Tiempo = %g seg\n", tiempo_act);
+            fprintf(stdout, "Iteration %3d, deltaT = %e sec, ", iter, delta_T);
+            fprintf(stdout, "Time = %g sec\n", tiempo_act);
             iter++;
 
 
