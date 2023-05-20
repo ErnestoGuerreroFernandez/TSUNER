@@ -81,10 +81,9 @@ int main(int argc, char *argv[])
     d = new double [SPL]();
         for (int i=0; i<SPL; i++){
             d[i] = (double(SPL-i)/double(SPL))*(double(SPL-i)/double(SPL));
-            d[i] = 1.0;
+//             d[i] = 1.0;
         }
 #endif
-
 
 
 	err = Exner(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);

@@ -65,16 +65,15 @@ __device__ double bedload(double h, double2 un){
 
     O = d_Opar*modu*modu;
 
-#if model == 0
 
     K1 = 8.0*u/(modu+EPSILON);
     aux=max(O-d_OC,0.0);
     qb=K1*d_Q*pow(aux,1.5)*(h>5*d_DS)*(h>d_HQB);
     
-#elif model==1
-    K1 = 17.0*u/modu;
-    qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB);
-#endif
+// #elif model==1
+//     K1 = 17.0*u/modu;
+//     qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB);
+// #endif
 
     
     return -qb *SEDIMENT;  // La explicacion de este signo se encuentra en apunte 1 del resolvedor de Riemann.

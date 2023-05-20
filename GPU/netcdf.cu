@@ -244,14 +244,22 @@ int initNC(char *prefijo, int npx,int npy, double xmin, double xmax, double ymin
 	int i;
 
 	ErrorEnNetCDF = false;
-    xgrid = new double [npx]();
-    ygrid = new double [npy]();
+    xgrid = new double [npx-SPL*2]();
+    ygrid = new double [npy-SPL*2]();
 	if (ygrid == NULL) {
 		free(xgrid);
 		return 1;
 	}
     dx=(xmax-xmin)/npx;
     dy=(ymax-ymin)/npy;
+    
+    xmin+=dx*SPL;
+    xmax-=dx*SPL;
+    ymin+=dy*SPL;
+    ymax-=dy*SPL;
+
+    npx-=SPL*2;
+    npy-=SPL*2;
 
 	for (i=0; i<npx; i++)
 		xgrid[i] = xmin+(i+0.5)*dx;

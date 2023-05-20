@@ -83,7 +83,7 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         reconsLhu[pos].y = reconsRhu[pos].y = reconsUhu[pos].y = reconsDhu[pos].y = d_dVhu[pos].y;
         
 #else   
- 
+
         int posl,posr;
         int im,ip,jm,jp;
         double dta,Hl,Hi,Hr;
@@ -144,9 +144,12 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         dr = ur.x - ui.x;
         du = avg(dl,dr);
         double dq = hi*du + ui.x * dh;
+
+
         
         reconsLhu[pos].x = d_dVhu[pos].x - 0.5*dq;
         reconsRhu[pos].x = d_dVhu[pos].x + 0.5*dq;
+        
         
         dl = ui.y - ul.y;
         dr = ur.y - ui.y;
@@ -156,13 +159,13 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         reconsLhu[pos].y = d_dVhu[pos].y - 0.5*dq;
         reconsRhu[pos].y = d_dVhu[pos].y + 0.5*dq;
         
+        
         // Integral
         d_Ahu[pos].x -= dta*G*hi*deta;
         
 #if RK==0
         double Tpx = G*hi*deta;
 #endif
-
         
         // **********************
         // Direccion y
@@ -192,6 +195,7 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         }
         reconsDh[pos] = hi - 0.5*dh;
         reconsUh[pos] = hi + 0.5*dh;
+        
         
         
         // Reconstruccion de eta y zb
@@ -298,6 +302,8 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         
         
 #endif
+        
+        
         // Fricciones
         aplica_fricciones(d_Ahu[pos], d0_dVh[pos], d0_dVhu[pos], epsilon_h, delta_T);        
     }

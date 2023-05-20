@@ -23,7 +23,7 @@ double profundidad(double x, double y) {
 
 double h_inicial (double x, double y, double zb=0.0) {
     double h1;
-    h1= profundidad(x,y) +1.0 +   1.0*exp(-5.0* ((x+2)*(x+2)   +  0* (y-3)*(y-3)))  + 0*35.0*exp(-5.0* ((x-0)*(x-0) + (y+2)*(y+2)));
+    h1= profundidad(x,y) +1.0 +   4.5*exp(-5.0* ((x-4)*(x-4)   +    (y-4)*(y-4)))  + 0*35.0*exp(-5.0* ((x-0)*(x-0) + (y+2)*(y+2)));
 //     h1=profundidad(x,y) + 10.0 + 755.0*exp(- 5.0* ((x-233)*(x-233)  +  (y-45)*(y-45)) )  ;
     
     
@@ -35,10 +35,10 @@ double h_inicial (double x, double y, double zb=0.0) {
 
 
 void velocidad(double x , double y, double2& u) {
-    u.x =   x*x*x;
+    u.x =   2*x *0;
     u.y = u.x *0 ;
-    if(x<0) u.x = -u.x;
-    u.x = x*0;
+//     if(x<0) u.x = -u.x;
+//     u.x = x*0;
 }
 
 

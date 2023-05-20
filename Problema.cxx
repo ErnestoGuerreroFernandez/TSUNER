@@ -315,8 +315,8 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     
 #if Read_files==1
     
-//     npx+=2*SPL;
-//     npy+=2*SPL;
+    npx+=2*SPL;
+    npy+=2*SPL;
     
     // Reservamos memoria
     double *bathy_interpolated, *eta_interpolated;
@@ -365,10 +365,18 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     xmax = xp[npx_grd-1] + 0.5*dx_grid;
     ymin = yp[0] - 0.5*dy_grid;
     ymax = yp[npy_grd-1] + 0.5*dy_grid;
-    interpolate_spherics(xmin,xmax,ymin,ymax, xmin,ymin, npx_grd, npy_grd, dx_grid, dy_grid, npx, npy, bathy_aux, bathy_interpolated);
-    delete[] bathy_aux;
+    double xmin_grid, ymin_grid;
+    xmin_grid=xmin;
+    ymin_grid=ymin;
     
-
+    
+    xmin-=dx_grid*SPL;
+    xmax+=dx_grid*SPL;
+    ymin-=dy_grid*SPL;
+    ymax+=dy_grid*SPL;
+    
+    interpolate_spherics(xmin,xmax,ymin,ymax, xmin_grid,ymin_grid, npx_grd, npy_grd, dx_grid, dy_grid, npx, npy, bathy_aux, bathy_interpolated);
+    delete[] bathy_aux;
     
     // ********************   CI 
     abrirCI_GRD(file_eta.c_str());
@@ -380,7 +388,6 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     yp_CI=new double[npy_grd_CI];
     leerLongitudGRD(xp_CI,1);
     leerLatitudGRD(yp_CI,1);
-    
     double *eta_aux;
     eta_aux=new double[npx_grd_CI*npy_grd_CI];
     if (eta_aux == NULL) {
@@ -389,15 +396,18 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         return 2;
     }
 
+
+    
     leerCI_GRD(eta_aux, time_grid);  // Free surface read from file, no interpolation.
     double dx_CI, dy_CI;
     dx_CI = (xp_CI[npx_grd_CI-1]-xp_CI[0])/npx_grd_CI;
     dy_CI = (yp_CI[npy_grd_CI-1]-yp_CI[0])/npy_grd_CI;
-
     interpolate_spherics(xmin,xmax,ymin,ymax, xp_CI[0], yp_CI[0], npx_grd_CI, npy_grd_CI, dx_CI, dy_CI, npx, npy, eta_aux, eta_interpolated);
     fix_eta(eta_interpolated, bathy_interpolated, npx, npy);
     delete [] eta_aux;
+    
 
+    
     // ********************** CC
     *tCC=new double [time_grid]();
     *CC = new double [(2*npx+2*npy)*4*time_grid]();
@@ -406,13 +416,18 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         liberarMemoria(*dVh,*dVhu,*dVH);
         return 2;
     }
+    
+
+
     interpolate_CC(file_eta, (*CC), (*tCC), npx, npy, xmin, xmax, ymin, ymax,  xp_CI[0], yp_CI[0],  time_grid, dx_CI, dy_CI, bathy_interpolated, ncid_CI);
 
 
-    // ******************************* Pasamos de esfericas a cartesianas.
     dx = (xmax-xmin)/(npx);
     dy = (ymax-ymin)/npy;
-    
+    // ******************************* Pasamos de esfericas a cartesianas.
+
+
+
     double dyE, *dxE, dy_unidad, dmax;
     dxE = new double[npy]();
     
@@ -439,11 +454,10 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
 
     // ******************************* CC
     spheric2cartesian_CC(xmin, xmax, ymin, ymax, dxE, dyE, npx, npy, time_grid, (*CC));
-
+    delete[] dxE;
 
     delete[] xp;
     delete[] yp;
-    delete[] dxE;
     cerrarGRD(ncid_CI);
     cerrarGRD(ncid_bati);
     
@@ -454,20 +468,22 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     for (j=0; j<npy; j++) {
         for (i=0; i<npx; i++) {
             pos=j*npx+i;
+            
             (*dVH)[pos] = (double) (bathy_interpolated_spheric[pos]) ;
             (*dVh)[pos] = (double) (eta_interpolated_spheric[pos]) *UNITS + (*dVH)[pos];
+            
 
-// if(i==0) cout<<(*dVH)[pos]<<endl;
+            
             (*dVh)[pos] *= ((*dVh)[pos]>=0.0);
             (*dVhu)[pos].x = 0.0;
             (*dVhu)[pos].y = 0.0;            
         }         
     }
 
-    
+
     delete[] bathy_interpolated_spheric;
     delete[] eta_interpolated_spheric;
-//  exit(-1);
+
 
 #else  // Del Read_files==1
     
@@ -508,6 +524,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
             velocidad(x,y,(*dVhu)[pos]);
             (*dVhu)[pos].x *= (*dVh)[pos];
             (*dVhu)[pos].y *= (*dVh)[pos];
+
         }         
     }
 

@@ -22,48 +22,58 @@ void guardarNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num
     double hn;
     int i, j, pos;
     
+    int posv=0;
+    
     write_tiempo(npx, npy, num, tiempo);
     
-    for (j=0; j<npy; j++) {
+
+    for (j=SPL; j<npy-SPL; j++) {
         pos = j*npx;
-        for (i=0; i<npx; i++) {
+        for (i=SPL; i<npx-SPL; i++) {
             hn = dVh[pos + i] - dVH[pos + i];
-            vec[j*npx + i] = hn; 
+            vec[posv] = hn; 
+            posv++;
         }
     }
     
-    writeEtaNC(npx, npy, num, tiempo,vec);
+    writeEtaNC(npx-2*SPL, npy-2*SPL, num, tiempo,vec);
     
-    
+
     // u1x
-    for (j=0; j<npy; j++) {
+    posv=0;
+    for (j=SPL; j<npy-SPL; j++) {
         pos = j*npx;
-        for (i=0; i<npx; i++){
+        for (i=SPL; i<npx-SPL; i++){
             aux=(dVhu[pos + i].x)/(dVh[pos+i]+EPSILON);
-            vec[j*npx + i] = aux;
+            vec[posv] = aux;
+            posv++;
         }
     }
-    writevelNC(npx, npy, num,0, vec);
+    writevelNC(npx-2*SPL, npy-2*SPL, num,0, vec);
     
     // u1y
-    for (j=0; j<npy; j++) {
+    posv=0;
+    for (j=SPL; j<npy-SPL; j++) {
         pos = j*npx;
-        for (i=0; i<npx; i++) {
+        for (i=SPL; i<npx-SPL; i++) {
             aux=(dVhu[pos + i].y)/(dVh[pos+i]+EPSILON);
-            vec[j*npx + i] = aux;
+            vec[posv] = aux;
+            posv++;
         }
     }
-    writevelNC(npx,npy,num,1,vec);
+    writevelNC(npx-2*SPL,npy-2*SPL,num,1,vec);
     
     // H
-    for (j=0; j<npy; j++) {
+    posv=0;
+    for (j=SPL; j<npy-SPL; j++) {
         pos = j*npx;
-        for (i=0; i<npx; i++) {
+        for (i=SPL; i<npx-SPL; i++) {
             aux=(dVH[pos + i]);
-            vec[j*npx + i] = -aux;
+            vec[posv] = -aux;
+            posv++;
         }
     }
-    writeHNC(npx,npy,num,vec);
+    writeHNC(npx-2*SPL,npy-2*SPL,num,vec);
     
 }
 
@@ -110,8 +120,6 @@ void liberarMemoria(double *d_dVh, double2 *d_dVhu, double* d_dVH, double *d_Ah,
 // Devuelve 0 si todo ha ido bien, 1 si no hay memoria GPU suficiente, y 2 si no hay memoria CPU suficiente
 extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice)
 {
-    int num_aristas_ver1, num_aristas_ver2;
-    int num_aristas_hor1, num_aristas_hor2;
     
     double2 *d_dVhu;
     double2 *d0_dVhu;
@@ -146,13 +154,6 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
     double sig_tiempo_guardar = 0.0;
     StopWatchInterface *timer = NULL;
     int iter;
-    
-    
-    // Numero de aristas verticales y horizontales
-    num_aristas_ver1 = (int(npx/2) + 1)*npy;
-    num_aristas_ver2 = (npx % 2 == 0) ? int(nvol/2) : num_aristas_ver1;
-    num_aristas_hor1 = (int(npy/2) + 1)*npx;
-    num_aristas_hor2 = (npy % 2 == 0) ? int(nvol/2) : num_aristas_hor1;
     
     
     
@@ -258,10 +259,10 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
     }
     
     // Tamano del grid y de bloque en el procesamiento de aristas
-    dim3 blockGridVer1(iDivUp(num_aristas_ver1/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
-    dim3 blockGridVer2(iDivUp(num_aristas_ver2/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
-    dim3 blockGridHor1(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor1/npx, NUM_HEBRAS_ALTO_ARI));
-    dim3 blockGridHor2(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor2/npx, NUM_HEBRAS_ALTO_ARI));
+//     dim3 blockGridVer1(iDivUp(num_aristas_ver1/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
+//     dim3 blockGridVer2(iDivUp(num_aristas_ver2/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
+//     dim3 blockGridHor1(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor1/npx, NUM_HEBRAS_ALTO_ARI));
+//     dim3 blockGridHor2(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor2/npx, NUM_HEBRAS_ALTO_ARI));
     // Tamano del grid y bloques en el calculo del nuevo estado
     dim3 blockGridEst(iDivUp(npx, NUM_HEBRAS_ANCHO_EST), iDivUp(npy, NUM_HEBRAS_ALTO_EST));
     dim3 threadBlockEst(NUM_HEBRAS_ANCHO_EST, NUM_HEBRAS_ALTO_EST);
@@ -316,6 +317,8 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
     fprintf(stdout, "Initial deltaT = %e sec\n", delta_T);
     
 
+//     return 0;
+    
     iter = 1;
     sdkCreateTimer(&timer);
     sdkStartTimer(&timer);
@@ -352,17 +355,14 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
                 
                 // Reconstruccion y fricciones.
                 reconstruye<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, npx, npy, delta_T, inv_dx, inv_dy, epsilon_h,d_Ahu,d0_dVh,d0_dVhu);
-                
-                // Resuelve el problema de Riemann en cada arista de forma alterna. Tiene un bug en la distribucción de tareas de CUDA. Si se descomenta, comentar la parte correspondiente en actualiza_estados.
-                //             aristas_alternas(d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, d_hx, d_hux, d_zbx, d_hy, d_huy, d_zby, num_aristas_hor1, num_aristas_hor2, num_aristas_ver1, num_aristas_ver2);
-                
+  
                 // Resuelve el problema de Riemann de forma secuencial en cada arista y guarda el resultado en FL, FRR, ...
                 aristas_volumenes(d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FRR, FU, FD, d_CC, d_tCC, timeCC);
-                
+    
                 actualiza_estados<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, delta_T*inv_dx, delta_T*inv_dy, FL, FRR, FU, FD, d_d, tiempo_act, d_CC, d_tCC, timeCC);
-                
             }
-            
+
+
             // Actualizamos el tiempo actual
             tiempo_act += delta_T;
 

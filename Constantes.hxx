@@ -21,19 +21,19 @@
 #define Re            6371e3  // Volumetric mean earth radius.
 
 
-#define model       0
-#define solver      0
-#define Manning     0 // Use Manning friction. Only use if SEDIMENT=0
+#define Manning     0 // Use Manning friction. Only use if SEDIMENT=0. NOT FINISHED, DO NOT USE.
 
 #define UNITS       0.01  // Change units of the Initial condition to put it in SI (it doesn't change the bathymetry!!).
+
+
 #define SEDIMENT    0   //If 0, the bedload doesn't move. The model is then equivalent to standar SW. If 1, it moves normally.
 
 
 #define order       2
 #define RK          1  // If RK==1, perform Runge-Kutta. If 0, perfoms MUSCL-Hancook
 
-#define WBC         1  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
-#define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer. Leave at 0, Sponge Layer with >0 not implemented.
+#define WBC         0  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
+#define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer. Do not use if Read_files==0
 
 #define Read_files  1  // If 1, it reads the initial condition, bathymetry and boundary conditions from the files in data.dat. If 0, it reads the initial condition from the functions defined in cini.cxx.
 
