@@ -317,8 +317,6 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
     fprintf(stdout, "Initial deltaT = %e sec\n", delta_T);
     
 
-//     return 0;
-    
     iter = 1;
     sdkCreateTimer(&timer);
     sdkStartTimer(&timer);

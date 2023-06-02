@@ -47,9 +47,9 @@ __device__ void interpolate_timeSPL(double *CC, double *tCC, long unsigned int t
     
     double dt;
     dt = tCC[1]-tCC[0];
-    
     int t, tp;
-    t = int(tiempo_act/dt);
+    t = int((tiempo_act-tCC[0])/dt);
+    t*=(t>0);
     if(t>timeCC-1)
         t=timeCC-1;
     tp = t+1;

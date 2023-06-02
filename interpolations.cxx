@@ -42,7 +42,7 @@ inline void dx_transform(double ymin, double dy, int tam, double xmax, double xm
 }
 
 
-
+/*
 void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, double xmin, double xmax, double ymin, double ymax, double xmin_grid, double ymin_grid, long unsigned int time, double dx_grid, double dy_grid, double *H, int id){
     
     
@@ -170,7 +170,6 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             N0 = L0(xt);
             N1 = L1(xt);
             N2 = L2(xt);
-            
 
 //             N0=N2=0;N1=1;
             
@@ -292,8 +291,9 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     delete [] fhu;
     delete [] fhv;
 }
+*/
 
-/*
+
 void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, double xmin, double xmax, double ymin, double ymax, double xmin_grid, double ymin_grid, long unsigned int time, double dx_grid, double dy_grid, double *H, int id){
     
     
@@ -541,15 +541,15 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             y0 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid; 
             m = (fh[pos1]-fh[pos])/dy_grid;
             b = fh[pos] - m*y0;
-            CC[posC+(npx+j)*4] = m*x+b;
+            CC[posC+(npx+j)*4] = m*y+b;
             
             m = (fhu[pos1]-fhu[pos])/dy_grid;
             b = fhu[pos] - m*y0;
-            CC[posC+(npx+j)*4+1] = m*x+b;
+            CC[posC+(npx+j)*4+1] = m*y+b;
             
             m = (fhv[pos1]-fhv[pos])/dy_grid;
             b = fhv[pos] - m*y0;
-            CC[posC+(npx+j)*4+2] = m*x+b;
+            CC[posC+(npx+j)*4+2] = m*y+b;
 
             CC[posC+(npx+j)*4+3] = H[j*npx+npx-1];
             
@@ -568,7 +568,7 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     delete [] fhu;
     delete [] fhv;
 }
-*/
+
 
 void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, double xmin_fun, double ymin_fun, int npx_fun, int npy_fun, double dx_fun, double dy_fun, int npx, int npy, double *fun, double *sol){
     // xmin, xmax, ... de sol

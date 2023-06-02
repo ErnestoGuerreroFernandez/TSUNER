@@ -13,7 +13,8 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
     dt = tCC[1]-tCC[0];
     
     int t, tp;
-    t = int(tiempo_act/dt);
+    t = int((tiempo_act-tCC[0])/dt) ;
+    t*=(t>0);
     tp = t+1;
     int posCC = t*(2*npx+2*npy)*4 + pos*4;
     int posCCp = tp*(2*npx+2*npy)*4 + pos*4;
@@ -86,6 +87,29 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                         q1.x = q0.x;
                     }
 #endif
+// if(j==30){
+//     double dt;
+//     dt = d_tCC[1]-d_tCC[0];
+//     int t,tp;
+//     t = int((tiempo_act-d_tCC[0])/dt) ;
+//     t*=(t>0);
+//     tp = t+1;
+//     int posCC = t*  (2*npx+2*npy)*4 + (2*npx+npy+j)*4;
+//     int posCCp = tp*(2*npx+2*npy)*4 + (2*npx+npy+j)*4;
+//     double m, b;
+//     m = (d_CC[posCCp]-d_CC[posCC])/dt;
+//     b = d_CC[posCC] - m*d_tCC[t];
+//     double inte = m*tiempo_act+b;
+//     inte *= UNITS;
+//     
+//     m = (d_CC[posCCp+3]-d_CC[posCC+3])/dt;
+//     b = d_CC[posCC+3] - m*d_tCC[t];
+//     double inte2 = m*tiempo_act+b;
+// // printf("%.15f,\n",inte+inte2);
+//     printf("%.15f,\n",d_CC[posCC]*0.01+d_CC[posCC+3]);
+// //     printf("%.15f    %.15f    %.15f  %d \n",tiempo_act, d_tCC[t], d_tCC[tp], (tiempo_act>d_tCC[t] && tiempo_act<d_tCC[tp]));
+// 
+// }
                     
                     pos0 *=4;
 

@@ -427,7 +427,6 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     // ******************************* Pasamos de esfericas a cartesianas.
 
 
-
     double dyE, *dxE, dy_unidad, dmax;
     dxE = new double[npy]();
     
@@ -438,6 +437,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     xmax = dmax;
     ymax = dy_unidad*(ymax-ymin);
     ymin = 0;
+
 
     dyE = dy*dy_unidad;
     // ******************************* Bathy
@@ -461,6 +461,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     cerrarGRD(ncid_CI);
     cerrarGRD(ncid_bati);
     
+    
     dx = (xmax-xmin)/(npx);
     dy = (ymax-ymin)/npy;
     
@@ -472,14 +473,11 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
             (*dVH)[pos] = (double) (bathy_interpolated_spheric[pos]) ;
             (*dVh)[pos] = (double) (eta_interpolated_spheric[pos]) *UNITS + (*dVH)[pos];
             
-
-            
             (*dVh)[pos] *= ((*dVh)[pos]>=0.0);
             (*dVhu)[pos].x = 0.0;
             (*dVhu)[pos].y = 0.0;            
         }         
     }
-
 
     delete[] bathy_interpolated_spheric;
     delete[] eta_interpolated_spheric;

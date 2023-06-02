@@ -23,7 +23,8 @@
 
 #define Manning     0 // Use Manning friction. Only use if SEDIMENT=0. NOT FINISHED, DO NOT USE.
 
-#define UNITS       0.01  // Change units of the Initial condition to put it in SI (it doesn't change the bathymetry!!).
+#define UNITS       0.01  // Change units of the Initial condition to put them in SI (it doesn't change the bathymetry!).
+// #define UNITS       1  // Change units of the Initial condition to put them in SI (it doesn't change the bathymetry!).
 
 
 #define SEDIMENT    0   //If 0, the bedload doesn't move. The model is then equivalent to standar SW. If 1, it moves normally.
