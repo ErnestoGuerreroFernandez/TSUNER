@@ -87,30 +87,6 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                         q1.x = q0.x;
                     }
 #endif
-// if(j==30){
-//     double dt;
-//     dt = d_tCC[1]-d_tCC[0];
-//     int t,tp;
-//     t = int((tiempo_act-d_tCC[0])/dt) ;
-//     t*=(t>0);
-//     tp = t+1;
-//     int posCC = t*  (2*npx+2*npy)*4 + (2*npx+npy+j)*4;
-//     int posCCp = tp*(2*npx+2*npy)*4 + (2*npx+npy+j)*4;
-//     double m, b;
-//     m = (d_CC[posCCp]-d_CC[posCC])/dt;
-//     b = d_CC[posCC] - m*d_tCC[t];
-//     double inte = m*tiempo_act+b;
-//     inte *= UNITS;
-//     
-//     m = (d_CC[posCCp+3]-d_CC[posCC+3])/dt;
-//     b = d_CC[posCC+3] - m*d_tCC[t];
-//     double inte2 = m*tiempo_act+b;
-// // printf("%.15f,\n",inte+inte2);
-//     printf("%.15f,\n",d_CC[posCC]*0.01+d_CC[posCC+3]);
-// //     printf("%.15f    %.15f    %.15f  %d \n",tiempo_act, d_tCC[t], d_tCC[tp], (tiempo_act>d_tCC[t] && tiempo_act<d_tCC[tp]));
-// 
-// }
-                    
                     pos0 *=4;
 
                     procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0);                  

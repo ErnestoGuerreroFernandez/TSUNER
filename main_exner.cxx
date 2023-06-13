@@ -85,6 +85,18 @@ int main(int argc, char *argv[])
         }
 #endif
 
+// for(int t=0;t<timeCC;t++){
+// //     for (int i=0;i<npx;i++){
+// //     }
+//     for(int j=0;j<npy;j++){
+//         int pos = t*(2*npx+2*npy)*4 + 2*npx*4 + npy*4 + j*4;
+//         printf("%.15f,\n",CC[pos]);
+//     }
+// }
+// 
+// return 0;
+
+
 
 	err = Exner(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
 	if (err > 0) {

@@ -84,8 +84,9 @@ void leerLongitudGRD(double *lon, int flag=0)
         id = ncid_bati;
     else
         id=ncid_CI;
-	// El nombre de la variable puede ser lon o x
-	iret = nc_inq_varid(id, "lon", &lon_id);
+    
+    // El nombre de la variable puede ser lon o x
+    iret = nc_inq_varid(id, "lon", &lon_id);
 	if (iret != NC_NOERR) {
 		iret = nc_inq_varid(id, "x", &lon_id);
 	}
