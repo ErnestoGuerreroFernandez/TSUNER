@@ -76,16 +76,16 @@ __device__ double bedload(double h, double2 un){
 // #endif
 
     
-    return -qb *SEDIMENT;  // La explicacion de este signo se encuentra en apunte 1 del resolvedor de Riemann.
+    return -qb;  // La explicacion de este signo se encuentra en apunte 1 del resolvedor de Riemann.
 }
 
 
-__device__ void flujoC(double h, double2 u, double *F){
+__device__ void flujoC(double h, double2 u, double *F,int fixed_sediment){
     
     F[0] = h*u.x;
     F[1] = F[0]*u.x;
     F[2] = F[0]*u.y;
-    F[3] = bedload(h,u);
+    F[3] = bedload(h,u) *fixed_sediment  * SEDIMENT;
     
 }
 

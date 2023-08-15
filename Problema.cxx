@@ -226,23 +226,24 @@ bool existeFichero(string fichero)
 	return existe;
 }
 
-void liberarMemoria(double *dVh,double2 *dVhu, double* dVH)
+void liberarMemoria(double *dVh,double2 *dVhu, double* dVH, int *fixH)
 {
 	if (dVhu != NULL)			    delete [] (dVhu);
     if (dVh != NULL)			    delete [] (dVh);
     if (dVH != NULL)			    delete [] (dVH);
+    if (fixH != NULL)               delete [] (fixH);
 }
 
 
 
 
 // Devuelve 0 si todo ha ido bien, 1 si no existe algun fichero, y 2 si no hay memoria CPU suficiente
-int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, unsigned long int &time_grid, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &tiempo_tot, double &tiempo_guardar, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &HQB, double &vmax, double &epsilon_h)
+int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, int **fixH, unsigned long int &time_grid, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &tiempo_tot, double &tiempo_guardar, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &HQB, double &vmax, double &epsilon_h)
 {
 	int i, j;
     int pos;
     string file_bat;
-    string file_eta;
+    string file_eta, file_fix_bathy;
  	char c;
     double R, porosity;
     
@@ -305,6 +306,9 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     fich >> c;
     std::getline(fich, line);
     fich >> file_eta;
+    fich >> c;
+    std::getline(fich, line);
+    fich >> file_fix_bathy;
 	fich.close();
     
 #if Manning ==0
@@ -316,16 +320,25 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     
 #if Read_files==1
     
+   int read_fixH=0;
+    if(file_fix_bathy.compare("0")){
+        read_fixH=1;
+    }
+
+    
+    
     npx+=2*SPL;
     npy+=2*SPL;
     
     // Reservamos memoria
     double *bathy_interpolated, *eta_interpolated;
+    double *fixH_interpolated;
     nvol = npx*npy;
     bathy_interpolated=new double[nvol]();
     eta_interpolated=new double[nvol]();
+    fixH_interpolated=new double[nvol]();
     
-
+    *fixH = new int [nvol]();
     *dVhu = new double2 [nvol]();
     *dVh = new double [nvol]();
     *dVH = new double [nvol]();
@@ -334,13 +347,14 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
 		cerr << "Error: No hay memoria CPU suficiente" << endl;
         if (bathy_interpolated != NULL) delete[] bathy_interpolated;
         if (eta_interpolated != NULL) delete[] eta_interpolated;
- 		liberarMemoria(*dVh,*dVhu,*dVH);
+        if (fixH_interpolated != NULL) delete[] fixH_interpolated;
 		return 2;
 	}
 	
 
-
-    // ********************   Bathy     
+    // ********************   Bathy 
+    printf("Reading bathymetry file\n");
+    fflush(stdout);
     abrirbatiGRD((char *) file_bat.c_str());
     int npx_grd, npy_grd;
     leerTamanoMallaGRD((char *) file_bat.c_str(),&npx_grd, &npy_grd);
@@ -378,8 +392,47 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     
     interpolate_spherics(xmin,xmax,ymin,ymax, xmin_grid,ymin_grid, npx_grd, npy_grd, dx_grid, dy_grid, npx, npy, bathy_aux, bathy_interpolated);
     delete[] bathy_aux;
+    delete[] xp;
+    delete[] yp;
+    cerrarGRD(ncid_bati);
+//     printf("Done\n");
+    printf("\n");
+    
+    // ********************   Fixed Bathy  
+    if(read_fixH){
+        printf("Reading fixed bathymetry file.\n");
+        fflush(stdout);
+        abrirbatiGRD((char *) file_fix_bathy.c_str());
+        leerTamanoMallaGRD((char *) file_fix_bathy.c_str(),&npx_grd, &npy_grd);
+        xp=new double[npx_grd];
+        yp=new double[npy_grd];
+        leerLongitudGRD(xp);
+        leerLatitudGRD(yp);
+        
+        double *fixH_aux;
+        fixH_aux=new double[npx_grd*npy_grd];
+        if (fixH_aux == NULL) {
+            cerr << "Error: No hay memoria CPU suficiente" << endl;
+            delete[] fixH_aux;
+            liberarMemoria(*dVh,*dVhu,*dVH,*fixH);
+            return 2;
+        }
+        leerBatimetriaGRD(npx_grd, npy_grd, fixH_aux);  // Bathymetry read from file, no interpolation.
+        dx_grid = (xp[npx_grd-1]-xp[0])/(npx_grd-1);
+        dy_grid = (yp[npy_grd-1]-yp[0])/(npy_grd-1);
+        
+        interpolate_spherics(xmin,xmax,ymin,ymax, xp[0], yp[0], npx_grd, npy_grd, dx_grid, dy_grid, npx, npy, fixH_aux, fixH_interpolated);
+        delete[] fixH_aux;
+        delete[] xp;
+        delete[] yp;
+        cerrarGRD(ncid_bati);
+//         printf("Done\n");
+        printf("\n");
+    }
     
     // ********************   CI 
+    printf("Reading initial conditions\n");
+    fflush(stdout);
     abrirCI_GRD(file_eta.c_str());
     int npx_grd_CI, npy_grd_CI;
     leerTamanoMallaGRD((char *) file_eta.c_str(),&npx_grd_CI, &npy_grd_CI);
@@ -406,23 +459,28 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     interpolate_spherics(xmin,xmax,ymin,ymax, xp_CI[0], yp_CI[0], npx_grd_CI, npy_grd_CI, dx_CI, dy_CI, npx, npy, eta_aux, eta_interpolated);
     fix_eta(eta_interpolated, bathy_interpolated, npx, npy);
     delete [] eta_aux;
-    
+//     printf("Done\n");
+    printf("\n");
 
     
     // ********************** CC
+    printf("Reading boundary conditions\n");
+    fflush(stdout);
     *tCC=new double [time_grid]();
     *CC = new double [(2*npx+2*npy)*4*time_grid]();
     if (*CC == NULL) {
         cerr << "Error: No hay memoria CPU suficiente" << endl;
-        liberarMemoria(*dVh,*dVhu,*dVH);
         return 2;
     }
     
 
 
     interpolate_CC(file_eta, (*CC), (*tCC), npx, npy, xmin, xmax, ymin, ymax,  xp_CI[0], yp_CI[0],  time_grid, dx_CI, dy_CI, bathy_interpolated, ncid_CI);
-
-
+    delete [] xp_CI;
+    delete [] yp_CI;
+//     printf("Done\n");
+    printf("\n");
+    
     dx = (xmax-xmin)/(npx);
     dy = (ymax-ymin)/npy;
     // ******************************* Pasamos de esfericas a cartesianas.
@@ -439,14 +497,22 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     ymax = dy_unidad*(ymax-ymin);
     ymin = 0;
 
-
+    printf("Converting into spherical coodinates\n");
+    fflush(stdout);
     dyE = dy*dy_unidad;
     // ******************************* Bathy
     double *bathy_interpolated_spheric;
     bathy_interpolated_spheric = new double[nvol]();
     spheric2cartesian(xmin, xmax, ymin, ymax, dxE, dyE, npx, npy, bathy_interpolated, bathy_interpolated_spheric);
     delete [] bathy_interpolated;
-
+    
+    // ******************************* Fix bathy
+    double *fixH_interpolated_spheric;
+    if(read_fixH){
+        fixH_interpolated_spheric = new double[nvol]();
+        spheric2cartesian(xmin, xmax, ymin, ymax, dxE, dyE, npx, npy, fixH_interpolated, fixH_interpolated_spheric);
+        delete [] fixH_interpolated;
+    }
     // ******************************* eta
     double *eta_interpolated_spheric;
     eta_interpolated_spheric = new double[nvol]();
@@ -456,33 +522,46 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     // ******************************* CC
     spheric2cartesian_CC(xmin, xmax, ymin, ymax, dxE, dyE, npx, npy, time_grid, (*CC));
     delete[] dxE;
-
-    delete[] xp;
-    delete[] yp;
     cerrarGRD(ncid_CI);
-    cerrarGRD(ncid_bati);
+//     printf("Done\n");
+    printf("\n");
     
     
     dx = (xmax-xmin)/(npx);
     dy = (ymax-ymin)/npy;
     
-
+    printf("Value assignation\n");
+    fflush(stdout);
     for (j=0; j<npy; j++) {
+        printProgress(float(j+1)/npy);
         for (i=0; i<npx; i++) {
             pos=j*npx+i;
             
             (*dVH)[pos] = (double) (bathy_interpolated_spheric[pos]) ;
             (*dVh)[pos] = (double) (eta_interpolated_spheric[pos]) *UNITS + (*dVH)[pos];
-            
             (*dVh)[pos] *= ((*dVh)[pos]>=0.0);
             (*dVhu)[pos].x = 0.0;
             (*dVhu)[pos].y = 0.0;            
-        }         
+            
+            if(read_fixH){
+                if(fixH_interpolated_spheric[pos]>=0.5){
+                    (*fixH)[pos] = 1;
+                }
+                else{
+                    (*fixH)[pos] = 0;
+                }
+            }
+            else{
+                (*fixH)[pos] = 1;
+            }
+            
+        }   
     }
 
     delete[] bathy_interpolated_spheric;
     delete[] eta_interpolated_spheric;
-
+//     printf("Done\n");
+    printf("\n");
 
 #else  // Del Read_files==1
     
@@ -500,14 +579,15 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     nvol = npx*npy;
 
     vmax = VMAX;
-
+    
+    *fixH = new int[nvol]();
     *dVhu = new double2 [nvol]();
     *dVh = new double [nvol]();
     *dVH = new double [nvol]();
     
 	if (*dVH == NULL) {
 		cerr << "Error: No hay memoria CPU suficiente" << endl;
- 		liberarMemoria(*dVh,*dVhu,*dVH);
+ 		liberarMemoria(*dVh,*dVhu,*dVH,*fixH);
 		return 2;
 	}
 
@@ -523,6 +603,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
             velocidad(x,y,(*dVhu)[pos]);
             (*dVhu)[pos].x *= (*dVh)[pos];
             (*dVhu)[pos].y *= (*dVh)[pos];
+            (*fixH)[pos] = fixed_bed_CI(x,y);
 
         }         
     }

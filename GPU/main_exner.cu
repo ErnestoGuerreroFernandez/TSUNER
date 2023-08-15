@@ -118,13 +118,14 @@ void liberarMemoria(double *d_dVh, double2 *d_dVhu, double* d_dVH, double *d_Ah,
 }
 
 // Devuelve 0 si todo ha ido bien, 1 si no hay memoria GPU suficiente, y 2 si no hay memoria CPU suficiente
-extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice)
+extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice)
 {
     
     double2 *d_dVhu;
     double2 *d0_dVhu;
     double2 *d_Ahu;
     double *d_dVh,*d_dVH, *d0_dVh,*d_Ah,*d_Azb, *d0_dVH;
+    int *d_fixH;
 
     double *d_d;
 
@@ -177,6 +178,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
 
     
     err+=cudaMalloc((void **)&d_dVH, tam_datosVolDouble);
+    err+=cudaMalloc((void **)&d_fixH, nvol*sizeof(int));
     
     err+=cudaMalloc((void **)&d0_dVh, tam_datosVolDouble);
     err+=cudaMalloc((void **)&d0_dVH, tam_datosVolDouble);
@@ -221,6 +223,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
         cudaFree(d_dVh);
         cudaFree(d_dVhu);
         cudaFree(d_dVH);
+        cudaFree(d_fixH);
         
         cudaFree(d0_dVh);
         cudaFree(d0_dVH);
@@ -271,7 +274,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
     cudaMemcpy(d_dVh, dVh, tam_datosVolDouble, cudaMemcpyHostToDevice);
     cudaMemcpy(d_dVhu, dVhu, tam_datosVolDouble2, cudaMemcpyHostToDevice);
     cudaMemcpy(d_dVH, dVH, tam_datosVolDouble, cudaMemcpyHostToDevice);
-    
+    cudaMemcpy(d_fixH, fixH, nvol*sizeof(int), cudaMemcpyHostToDevice);
 
     cudaMemcpy(d_CC, CC, (2*npx+2*npy)*4*timeCC*sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_tCC, tCC, timeCC*sizeof(double), cudaMemcpyHostToDevice);
@@ -355,7 +358,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, doubl
                 reconstruye<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, npx, npy, delta_T, inv_dx, inv_dy, epsilon_h,d_Ahu,d0_dVh,d0_dVhu);
   
                 // Resuelve el problema de Riemann de forma secuencial en cada arista y guarda el resultado en FL, FRR, ...
-                aristas_volumenes(d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FRR, FU, FD, d_CC, d_tCC, timeCC);
+                aristas_volumenes(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FRR, FU, FD, d_CC, d_tCC, timeCC);
     
                 actualiza_estados<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, delta_T*inv_dx, delta_T*inv_dy, FL, FRR, FU, FD, d_d, tiempo_act, d_CC, d_tCC, timeCC);
             }

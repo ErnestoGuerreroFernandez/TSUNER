@@ -24,7 +24,7 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
     b = CC[posCC] - m*tCC[t];
     h1 = m*tiempo_act+b;
     h1*=UNITS;
-
+    
     
     m = (CC[posCCp+3]-CC[posCC+3])/dt;
     b = CC[posCC+3] - m*tCC[t];
@@ -47,13 +47,14 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
 }
 
 
-__global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC){
+__global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC){
 
 	int i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
 	int j = blockIdx.y*NUM_HEBRAS_ANCHO_EST  + threadIdx.y;
     int pos0, pos1; 
     double h0, h1, zb0, zb1;
     double2 q0, q1;
+    int fixed_sediment=0; // if 0, it does not move. If 1, it moves normally.
 
     if ((i <= npx) && (j <= npy)) {
             if((i <= npx) && (j < npy)){
@@ -87,9 +88,10 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                         q1.x = q0.x;
                     }
 #endif
+                    
+                    fixed_sediment = fixH[pos0];
                     pos0 *=4;
-
-                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0);                  
+                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0,fixed_sediment);                  
 #endif
                 }
                 else{
@@ -130,8 +132,9 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                     }
 #endif
 
+                        fixed_sediment = fixH[pos0];
                         pos0 *=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment);
                         
                     }
                     else{
@@ -145,9 +148,10 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                         q1.x = reconsLhu[pos1].x;
                         q1.y = reconsLhu[pos1].y;
    
+                        fixed_sediment = fixH[pos0]*fixH[pos1];
                         pos0 *=4;
                         pos1 *=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment);
                     }
                 }
                 
@@ -186,8 +190,9 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 #endif
 
                     
+                    fixed_sediment = fixH[pos0];
                     pos0 *=4;
-                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,-1);
+                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,-1,fixed_sediment);
 #endif
                 }
                 else{
@@ -229,8 +234,9 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 
 // h1= 4.0*cos(2*PI*tiempo_act/5.0);
 // q1.y = h1*q1.y/h0;
+                        fixed_sediment = fixH[pos0];
                         pos0 *=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment);
                         
                     }
                     else{
@@ -245,9 +251,10 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
                         q1.y = reconsDhu[pos1].y;
                         
                         
+                        fixed_sediment = fixH[pos0]*fixH[pos1];
                         pos0 *=4;
                         pos1*=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment);
                     }
                 }
             }
@@ -261,7 +268,7 @@ __global__ void volumenes (double *d_dVh, double2 *d_dVhu, double *d_dVH, double
 
 
 
-inline void aristas_volumenes(double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC)
+inline void aristas_volumenes(int *d_fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC)
 {
     
     
@@ -272,7 +279,7 @@ inline void aristas_volumenes(double *d_dVh, double2 *d_dVhu, double *d_dVH, dou
     dim3 threadBlockEst(NUM_HEBRAS_ANCHO_EST, NUM_HEBRAS_ALTO_EST);
     
     
-    volumenes<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FR, FU, FD, d_CC, d_tCC, timeCC);
+    volumenes<<<blockGridEst, threadBlockEst>>>(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FR, FU, FD, d_CC, d_tCC, timeCC);
 
 //     sum_contribuciones<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, npx, npy, delta_T, dx, dy, epsilon_h, vmax, FL, FR, FU, FD);
     

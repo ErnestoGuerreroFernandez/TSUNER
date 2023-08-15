@@ -5,6 +5,18 @@
 bool ErrorNetCDF_inte;
 
 
+#define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
+#define PBWIDTH 60
+
+void printProgress(double percentage) {
+    int val = (int) (percentage * 100);
+    int lpad = (int) (percentage * PBWIDTH);
+    int rpad = PBWIDTH - lpad;
+    printf("\r%3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
+    fflush(stdout);
+}
+
+
 
 void check_errGRD_inte(int iret)
 {
@@ -457,6 +469,7 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     double N0, N1, N2, N3, N4, N5, N6, N7, N8;
     double x0, x1, x2, y0, y1, y2;
     for (int t=0; t<time; t++){
+        printProgress(float(t+1)/time);
         int posC = t*(2*npx+2*npy)*4;
         for (int i=0; i<npx; i++){
             x = xmin + 0.5*dx + i*dx;
@@ -564,20 +577,6 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(npx+npy+i)*4] = N0*fh[posLD] + N1*fh[posD] + N2*fh[posRD] + N3*fh[posL] + N4*fh[pos] + N5*fh[posR] + N6*fh[posLU] + N7*fh[posU] + N8*fh[posRU];
             CC[posC+(npx+npy+i)*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+(npx+npy+i)*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
-            
-            
-//             x0 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
-//             m = (fh[pos1]-fh[pos])/dx_grid;
-//             b = fh[pos] - m*x0;
-//             CC[posC+(npx+npy+i)*4] = m*x+b;
-//             
-//             m = (fhu[pos1]-fhu[pos])/dx_grid;
-//             b = fhu[pos] - m*x0;
-//             CC[posC+(npx+npy+i)*4+1] = m*x+b;
-//             
-//             m = (fhv[pos1]-fhv[pos])/dx_grid;
-//             b = fhv[pos] - m*x0;
-//             CC[posC+(npx+npy+i)*4+2] = m*x+b;
             CC[posC+(npx+npy+i)*4+3] = H[(npy-1)*npx+i];
             
             if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
@@ -651,7 +650,6 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(2*npx+npy+j)*4+2] = m*y+b;*/
             CC[posC+(2*npx+npy+j)*4+3] = H[j*npx];
             
-//             printf("%f   %f \n",y, fhu[pos]);
             
             if(CC[posC+(2*npx+npy+j)*4]<-1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
             if(CC[posC+(2*npx+npy+j)*4+1]<-1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
@@ -754,6 +752,7 @@ void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, do
 
     
     for (int j=0; j<npy; j++){
+        printProgress(float(j+1)/npy);
         for (int i=0; i<npx; i++){
             int pos, posp;
             int posL, posR, posU, posD, posLU, posLD, posRU, posRD;
@@ -851,6 +850,7 @@ void spheric2cartesian(double xmin, double xmax, double ymin, double ymax, doubl
 
     
     for (int i=0; i<npx; i++){
+        printProgress(float(i+1)/npx);
         for (int j=0; j<npy; j++){
             int pos, posp;
             int posL, posR, posU, posD, posLU, posLD, posRU, posRD;
@@ -918,7 +918,6 @@ void spheric2cartesian(double xmin, double xmax, double ymin, double ymax, doubl
                 
             
             sol[posp] = fun[posLD]*N1 + fun[posD]*N2 + fun[posRD]*N3 + fun[posL]*N4 + fun[pos]*N5 + fun[posR]*N6 + fun[posLU]*N7 + fun[posU]*N8 + fun[posRU]*N9; 
-//             if(AUX==0) sol[posp] = fun[pos];
             
             
         }

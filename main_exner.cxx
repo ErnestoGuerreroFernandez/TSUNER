@@ -9,7 +9,7 @@
 extern "C" int comprobarSoporteCUDA(int cudaDevice);
 extern "C" void inicializarGPU();
 
-extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice);
+extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice);
 
 /*********************/
 /* Fin funciones GPU */
@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     double* dVH; //batimetria
     double *CC;
     double *tCC;  // Boundary conditions.
+    int *fixH; // Fixed bathymetry
     long unsigned int timeCC;
 	int soporteCUDA, err;
     int cudaDevice;
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
     }
 	inicializarGPU();
 
-    err = cargarDatosProblema(fich_ent, prefijo, &dVh, &dVhu, &dVH, &CC, &tCC, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, tiempo_tot, tiempo_guardar, CFL, Q, DS, FR, Opar, OC, HQB, vmax, epsilon_h);
+    err = cargarDatosProblema(fich_ent, prefijo, &dVh, &dVhu, &dVH, &CC, &tCC, &fixH, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, tiempo_tot, tiempo_guardar, CFL, Q, DS, FR, Opar, OC, HQB, vmax, epsilon_h);
 	if (err > 0)
 		return EXIT_FAILURE;
 	cout << scientific;
@@ -85,30 +86,18 @@ int main(int argc, char *argv[])
         }
 #endif
 
-// for(int t=0;t<timeCC;t++){
-// //     for (int i=0;i<npx;i++){
-// //     }
-//     for(int j=0;j<npy;j++){
-//         int pos = t*(2*npx+2*npy)*4 + 2*npx*4 + npy*4 + j*4;
-//         printf("%.15f,\n",CC[pos]);
-//     }
-// }
-// 
-// return 0;
 
-
-
-	err = Exner(dVh, dVhu, dVH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
+	err = Exner(dVh, dVhu, dVH, fixH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
 	if (err > 0) {
 		if (err == 1)
 			cerr << "Error: Not enough GPU memory" << endl;
 		else if (err == 2)
 			cerr << "Error: Not enough CPU memory" << endl;
-		liberarMemoria(dVh,dVhu,dVH);
+		liberarMemoria(dVh,dVhu,dVH,fixH);
 		return EXIT_FAILURE;
 	}
 	cout << endl << "Total simulation time: " << tiempo_gpu << " sec." << endl;
-	liberarMemoria(dVh, dVhu, dVH);
+	liberarMemoria(dVh, dVhu, dVH,fixH);
 #if SPL>0
     delete [] d;
 #endif

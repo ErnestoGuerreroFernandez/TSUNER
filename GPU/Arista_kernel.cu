@@ -47,8 +47,8 @@ __device__ void procesarArista(double hhl, double zb0, double2 qql,  double hhr,
     double F0[4], F1[4];
     F0[0] = F0[1] = F0[2] = F0[3] = 0.0;
     F1[0] = F1[1] = F1[2] = F1[3] = 0.0;
-    flujoC(h0,u0,F0);  // Apunte 1: Puesto que el sistema de referencia es con la H medida por encima de la batimetria, el sistema que resuelves es dt(H) - dx(qb) (ver articulo de Castro-Fernandez-Ferreiro). Por tanto, se pone un -1 en el flujo del sedimento. 
-    flujoC(h1,u1,F1);
+    flujoC(h0,u0,F0,1);  // Apunte 1: Puesto que el sistema de referencia es con la H medida por encima de la batimetria, el sistema que resuelves es dt(H) - dx(qb) (ver articulo de Castro-Fernandez-Ferreiro). Por tanto, se pone un -1 en el flujo del sedimento. 
+    flujoC(h1,u1,F1,1);
 
     double hm, zm; // Medias de Roe
     double2 um;
@@ -388,7 +388,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
 
 
 
-__device__ void procesarArista_Volumenes(double hhl, double zb0, double2 qql, double hhr, double zb1, double2 qqr, int pos0, int pos1, double epsilon_h, double vmax, double *FL, double *FR, int normal_x, int normal_y){
+__device__ void procesarArista_Volumenes(double hhl, double zb0, double2 qql, double hhr, double zb1, double2 qqr, int pos0, int pos1, double epsilon_h, double vmax, double *FL, double *FR, int normal_x, int normal_y, int fixed_sediment){
     
     double2 q0,q1;
     double2 ql, qr;
@@ -423,8 +423,8 @@ __device__ void procesarArista_Volumenes(double hhl, double zb0, double2 qql, do
     double F0[4], F1[4];
     F0[0] = F0[1] = F0[2] = F0[3] = 0.0;
     F1[0] = F1[1] = F1[2] = F1[3] = 0.0;
-    flujoC(h0,u0,F0);  // Apunte 1: Puesto que el sistema de referencia es con la H medida por encima de la batimetria, el sistema que resuelves es dt(H) - dx(qb) (ver articulo de Castro-Fernandez-Ferreiro). Por tanto, se pone un -1 en el flujo del sedimento. 
-    flujoC(h1,u1,F1);
+    flujoC(h0,u0,F0,fixed_sediment);  // Apunte 1: Puesto que el sistema de referencia es con la H medida por encima de la batimetria, el sistema que resuelves es dt(H) - dx(qb) (ver articulo de Castro-Fernandez-Ferreiro). Por tanto, se pone un -1 en el flujo del sedimento. 
+    flujoC(h1,u1,F1,fixed_sediment);
 
     double hm, zm; // Medias de Roe
     double2 um;
