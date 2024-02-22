@@ -108,8 +108,8 @@ void leerLatitudGRD(double *lat, int flag=0)
     else
         id=ncid_CI;
     
-	// El nombre de la variable puede ser lat o y
-	iret = nc_inq_varid(id, "lat", &lat_id);
+    // El nombre de la variable puede ser lat o y
+    iret = nc_inq_varid(id, "lat", &lat_id);
 	if (iret != NC_NOERR) {
 		iret = nc_inq_varid(id, "y", &lat_id);
 	}

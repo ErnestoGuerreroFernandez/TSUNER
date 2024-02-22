@@ -38,8 +38,6 @@ __global__ void obtenerDeltaTVolumenesGPU(double* d_dVh, double2* d_dVhu, double
         
         d_deltaTV[pos]=dt;
     }
-    
-
 }
 
 __device__ void interpolate_timeSPL(double *CC, double *tCC, long unsigned int timeCC, double tiempo_act, double &h1, double &zb1, double2 &q1, int npx, int npy, int pos){

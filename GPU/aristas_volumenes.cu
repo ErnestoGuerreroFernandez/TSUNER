@@ -88,10 +88,12 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
                         q1.x = q0.x;
                     }
 #endif
-                    
+// h1= 4.0*cos(2*PI*tiempo_act/5.0);
+// q1.x = h1*q1.x/h0;
+
                     fixed_sediment = fixH[pos0];
                     pos0 *=4;
-                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0,fixed_sediment);                  
+                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0,fixed_sediment,dx);
 #endif
                 }
                 else{
@@ -134,7 +136,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
 
                         fixed_sediment = fixH[pos0];
                         pos0 *=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment,dx);
                         
                     }
                     else{
@@ -151,7 +153,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
                         fixed_sediment = fixH[pos0]*fixH[pos1];
                         pos0 *=4;
                         pos1 *=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment,dx);
                     }
                 }
                 
@@ -192,7 +194,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
                     
                     fixed_sediment = fixH[pos0];
                     pos0 *=4;
-                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,-1,fixed_sediment);
+                    procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,-1,fixed_sediment,dy);
 #endif
                 }
                 else{
@@ -236,7 +238,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
 // q1.y = h1*q1.y/h0;
                         fixed_sediment = fixH[pos0];
                         pos0 *=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment,dy);
                         
                     }
                     else{
@@ -254,7 +256,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
                         fixed_sediment = fixH[pos0]*fixH[pos1];
                         pos0 *=4;
                         pos1*=4;
-                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment);
+                        procesarArista_Volumenes(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment,dy);
                     }
                 }
             }

@@ -53,7 +53,7 @@ __device__ void evalua_rq(double2 q,double2 dq, double val, double2& qr) {
 }
 
 
-__device__ double bedload(double h, double2 un){
+__device__ double bedload(double h, double2 un, double db, double dx){
 	double qb;
 	double K1;
 	double O;
@@ -63,16 +63,37 @@ __device__ double bedload(double h, double2 un){
     u = un.x;
     double modu = sqrt(un.x*un.x+un.y*un.y) ;
 
-    O = d_Opar*modu*modu;
 
+// #if bedload_formula==0
+
+    O = d_Opar*modu*modu;
 
     K1 = 8.0*u/(modu+EPSILON);
     aux=max(O-d_OC,0.0);
     qb=K1*d_Q*pow(aux,1.5)*(h>5*d_DS)*(h>d_HQB);
+
+    // Ashida & Michiue
+    K1 = 17.0*u/(modu+EPSILON);
+    qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB)*(h>5*d_DS);
     
-// #elif model==1
-//     K1 = 17.0*u/modu;
-//     qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB);
+    // qb *= 53;
+// #else
+//
+//     double epsb, epss, W, phi;
+//     double w, tanphi, tanbeta;
+//
+//     epsb=0.13;
+//     epss=0.01;
+//     W = 0.04;
+//     w = 1000*5e-3*abs(modu*modu*modu);
+//     tanphi = tan(25*PI/180);
+//     tanbeta= db/dx;
+//
+//     qb = 0.0001*(epsb/(tanphi-tanbeta) + epss/((W/modu)-tanbeta))*w;
+//
+//     // if(abs(qb)>1e-5)
+//     // printf("%.15f\n",qb);
+//
 // #endif
 
     
@@ -80,13 +101,13 @@ __device__ double bedload(double h, double2 un){
 }
 
 
-__device__ void flujoC(double h, double2 u, double *F,int fixed_sediment){
+__device__ void flujoC(double h, double2 u, double *F,int fixed_sediment, double db, double dx){
     
     F[0] = h*u.x;
     F[1] = F[0]*u.x;
     F[2] = F[0]*u.y;
-    F[3] = bedload(h,u) *fixed_sediment  * SEDIMENT;
-    
+    F[3] = bedload(h,u, db, dx) *fixed_sediment  * SEDIMENT;
+
 }
 
 __device__ void roe_average(double h0, double2 u0, double z0, double h1, double2 u1, double z1, double &hm, double2 &um, double &zm){

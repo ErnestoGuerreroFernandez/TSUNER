@@ -196,7 +196,7 @@ __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, doubl
         reconsDh[pos] = hi - 0.5*dh;
         reconsUh[pos] = hi + 0.5*dh;
         
-        
+
         
         // Reconstruccion de eta y zb
         zm = min(Hl,Hi);
