@@ -67,34 +67,21 @@ __device__ double bedload(double h, double2 un, double db, double dx){
 // #if bedload_formula==0
 
     O = d_Opar*modu*modu;
-
+/*
     K1 = 8.0*u/(modu+EPSILON);
     aux=max(O-d_OC,0.0);
     qb=K1*d_Q*pow(aux,1.5)*(h>5*d_DS)*(h>d_HQB);
 
     // Ashida & Michiue
     K1 = 17.0*u/(modu+EPSILON);
-    qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB)*(h>5*d_DS);
+    qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB)*(h>5*d_DS);*/
     
-    // qb *= 53;
-// #else
-//
-//     double epsb, epss, W, phi;
-//     double w, tanphi, tanbeta;
-//
-//     epsb=0.13;
-//     epss=0.01;
-//     W = 0.04;
-//     w = 1000*5e-3*abs(modu*modu*modu);
-//     tanphi = tan(25*PI/180);
-//     tanbeta= db/dx;
-//
-//     qb = 0.0001*(epsb/(tanphi-tanbeta) + epss/((W/modu)-tanbeta))*w;
-//
-//     // if(abs(qb)>1e-5)
-//     // printf("%.15f\n",qb);
-//
-// #endif
+
+
+    K1 = 40.0*u/(modu+EPSILON);
+    aux=max(O-d_OC,0.0);
+    qb=K1*d_Q*pow(aux,1.5)*max((sqrt(O)-sqrt(d_OC)),0.0)*(h>5*d_DS)*(h>d_HQB);
+
 
     
     return -qb;  // La explicacion de este signo se encuentra en apunte 1 del resolvedor de Riemann.

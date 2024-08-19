@@ -118,7 +118,7 @@ void liberarMemoria(double *d_dVh, double2 *d_dVhu, double* d_dVH, double *d_Ah,
 }
 
 // Devuelve 0 si todo ha ido bien, 1 si no hay memoria GPU suficiente, y 2 si no hay memoria CPU suficiente
-extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice)
+extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup, double &tiempo, int CudaDevice, double *tides_bd, float *tides_time, int tidesNPT)
 {
     
     double2 *d_dVhu;
@@ -137,7 +137,11 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     double2 *reconsLhu, *reconsRhu, *reconsUhu, *reconsDhu;
     double *d_CC;
     double *d_tCC;
-    
+    double *d_dyrup;
+    float *d_time_dyrup;
+    double *d_tidesBd;
+    float *d_tidesT;
+
     double *d_deltaTV;
     double *vec;
     //  	cudaError_t err;
@@ -218,6 +222,15 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     err+=cudaMalloc((void **)&d_tCC, timeCC*sizeof(double));
 #endif
 
+    if(tidesNPT>0){
+        err+=cudaMalloc((void **)&d_tidesBd, (2*npx+2*npy)*tidesNPT*sizeof(double));
+        err+=cudaMalloc((void **)&d_tidesT, tidesNPT*sizeof(float));
+    }
+
+    err+=cudaMalloc((void **)&d_dyrup, nvol*40*sizeof(double));
+    err+=cudaMalloc((void **)&d_time_dyrup, 40*sizeof(float));
+
+
     if (err >0) {
         cudaFree(d_hmax);
         cudaFree(d_dVh);
@@ -256,6 +269,11 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
         cudaFree(d_CC);
         cudaFree(d_tCC);
 
+        if (tidesNPT>0){
+            cudaFree(d_tidesBd);
+            cudaFree(d_tidesT);
+        }
+
         cudaFree(d_d);
 
         return 1;
@@ -278,6 +296,12 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
 
     cudaMemcpy(d_CC, CC, (2*npx+2*npy)*4*timeCC*sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_tCC, tCC, timeCC*sizeof(double), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_tidesBd, tides_bd, (2*npx+2*npy)*tidesNPT*sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_tidesT, tides_time, tidesNPT*sizeof(float), cudaMemcpyHostToDevice);
+
+    // cudaMemcpy(d_dyrup, dyrup, 40*nvol*sizeof(double), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_time_dyrup, time_dyrup, 40*sizeof(float), cudaMemcpyHostToDevice);
     
     
     cudaMemcpy(d_d, d, SPL*sizeof(double), cudaMemcpyHostToDevice);
@@ -300,6 +324,10 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
         delete [] vec;
         
         liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD);
+        if (tidesNPT>0){
+            cudaFree(d_tidesBd);
+            cudaFree(d_tidesT);
+        }
         return 2;
     }
     
@@ -309,6 +337,10 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     iter = initNC(prefijo, npx, npy, xmin, xmax, ymin, ymax, tiempo_tot,vec);
     if (iter == 1) {
         liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD);
+        if (tidesNPT>0){
+            cudaFree(d_tidesBd);
+            cudaFree(d_tidesT);
+        }
         return 2;
     }
     
@@ -358,9 +390,9 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
                 reconstruye<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, npx, npy, delta_T, inv_dx, inv_dy, epsilon_h,d_Ahu,d0_dVh,d0_dVhu);
   
                 // Resuelve el problema de Riemann de forma secuencial en cada arista y guarda el resultado en FL, FRR, ...
-                aristas_volumenes(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FRR, FU, FD, d_CC, d_tCC, timeCC);
+                aristas_volumenes(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FRR, FU, FD, d_CC, d_tCC, timeCC, d_tidesBd, d_tidesT, tidesNPT);
     
-                actualiza_estados<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, delta_T*inv_dx, delta_T*inv_dy, FL, FRR, FU, FD, d_d, tiempo_act, d_CC, d_tCC, timeCC);
+                actualiza_estados<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, delta_T*inv_dx, delta_T*inv_dy, FL, FRR, FU, FD, d_d, tiempo_act, d_CC, d_tCC, timeCC,d_dyrup,d_time_dyrup);
             }
 
 
@@ -393,7 +425,10 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
         
         sdkDeleteTimer(&timer);
         liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD);
-        
+        if (tidesNPT>0){
+            cudaFree(d_tidesBd);
+            cudaFree(d_tidesT);
+        }
         delete [] vec;
         
         cudaFree(d_d);

@@ -146,7 +146,33 @@ __device__ void spongeLayer(double *d_Ah, double2 *d_Ahu, double *d_Azb, int npx
 
 
 
-__global__ void actualiza_estados(double* d_Ah, double2* d_Ahu, double *d_Azb, double* d0_dVh, double2* d0_dVhu, double *d0_dVH, double* d_dVh, double2* d_dVhu, double *d_dVH, int npx, int npy, int k, double epsilon_h, double invx, double invy, double *FL, double *FR, double *FU, double *FD, double *d, double tiempo_act, double *d_CC, double *d_tCC, long unsigned int timeCC)
+__device__ double dynamicRuptureInterpolation(double *dyrup, float *time_dyrup, double tiempo_act, int pos, int npx, int npy){
+
+    // return 0.0;
+    float dt;
+    dt = time_dyrup[1]-time_dyrup[0];
+    int t, tp;
+    t = int((tiempo_act-time_dyrup[0])/dt);
+    // printf("%d  %f \n",t,tiempo_act);
+    t*=(t>0);
+    if(t>40-1)
+        return 0.0;
+    tp = t+1;
+    int posCC = t*npx*npy + pos;
+    int posCCp = tp*npx*npy + pos;
+
+    double m, b;
+    m = (dyrup[posCCp]-dyrup[posCC])/(time_dyrup[tp]-time_dyrup[t]);
+    b = dyrup[posCC] - m*time_dyrup[t];
+    // printf("%.15f   %d\n",(m*tiempo_act+b),pos);
+    return (m*tiempo_act+b);
+
+}
+
+
+
+
+__global__ void actualiza_estados(double* d_Ah, double2* d_Ahu, double *d_Azb, double* d0_dVh, double2* d0_dVhu, double *d0_dVH, double* d_dVh, double2* d_dVhu, double *d_dVH, int npx, int npy, int k, double epsilon_h, double invx, double invy, double *FL, double *FR, double *FU, double *FD, double *d, double tiempo_act, double *d_CC, double *d_tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup)
 {
     int i,j;
     int pos;
@@ -227,6 +253,14 @@ __global__ void actualiza_estados(double* d_Ah, double2* d_Ahu, double *d_Azb, d
         q.x = coef0 * d0_dVhu[pos].x + coef1 * d_Ahu[pos].x;
         q.y = coef0 * d0_dVhu[pos].y + coef1 * d_Ahu[pos].y;
         d_Azb[pos] = coef0 * d0_dVH[pos] + coef1 * d_Azb[pos];
+
+        // if (tiempo_act<time_dyrup[39]){
+            // d_Azb[pos] = dynamicRuptureInterpolation(dyrup,time_dyrup,tiempo_act,pos,npx,npy);
+        // }
+
+        // if (i<50 && i>30 && tiempo_act<1)
+        // d_Azb[pos] -= 0.004;
+
         
         filtro_estado(h,q,epsilon_h);
         

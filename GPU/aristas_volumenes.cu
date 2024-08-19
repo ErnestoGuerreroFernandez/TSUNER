@@ -7,7 +7,7 @@
 
 
 
-__device__ void interpolate_time(double *CC, double *tCC, long unsigned int timeCC, double tiempo_act, double &h1, double &zb1, double2 &q1, int npx, int npy, int pos){
+__device__ void interpolate_time(double *CC, double *tCC, long unsigned int timeCC, double tiempo_act, double &h1, double &zb1, double2 &q1, int npx, int npy, int pos, double *tidesBd, float *tidesT, int tidesNPT){
     
     double dt;
     dt = tCC[1]-tCC[0];
@@ -24,30 +24,41 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
     b = CC[posCC] - m*tCC[t];
     h1 = m*tiempo_act+b;
     h1*=UNITS;
-    
-    
+
+
     m = (CC[posCCp+3]-CC[posCC+3])/dt;
     b = CC[posCC+3] - m*tCC[t];
     zb1 = m*tiempo_act+b;
-    
-    h1 += zb1;    
+
+    h1 += zb1;
 
     m = (CC[posCCp+1]-CC[posCC+1])/dt;
     b = CC[posCC+1] - m*tCC[t];
-    q1.x = m*tiempo_act+b;    
+    q1.x = m*tiempo_act+b;
     q1.x*= UNITS* h1   ;
 
     m = (CC[posCCp+2]-CC[posCC+2])/dt;
     b = CC[posCC+2] - m*tCC[t];
-    q1.y = m*tiempo_act+b;   
+    q1.y = m*tiempo_act+b;
     q1.y*= UNITS*h1    ;
 
 
+    // tides
+    // dt = tidesT[1]-tidesT[0];
+    // t = int((tiempo_act-tidesT[0])/dt) ;
+    // t*=(t>0);
+    // tp = t+1;
+    // posCC = t*(2*npx+2*npy) + pos;
+    // posCCp = tp*(2*npx+2*npy) + pos;
+    //
+    // m = (tidesBd[posCCp]-tidesBd[posCC])/dt;
+    // b = tidesBd[posCC] - m*tidesT[t];
+    // h1 = h1 + (m*tiempo_act+b) * (tiempo_act<tidesT[tidesNPT-1]);
     
 }
 
 
-__global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC){
+__global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC, double *tidesBd, float *tidesT, int tidesNPT){
 
 	int i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
 	int j = blockIdx.y*NUM_HEBRAS_ANCHO_EST  + threadIdx.y;
@@ -82,7 +93,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
 #endif
 #if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,2*npx+npy+j);
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,2*npx+npy+j, tidesBd, tidesT, tidesNPT);
                     }
                     else{ // Salida libre
                         q1.x = q0.x;
@@ -127,7 +138,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
 #endif
 #if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+j);
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+j, tidesBd, tidesT, tidesNPT);
                     }
                     else{ // Salida libre
                         q1.x = q0.x;
@@ -184,7 +195,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
                     
 #if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,i);
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,i, tidesBd, tidesT, tidesNPT);
                     }
                     else{ // Salida libre
                         q1.y = q0.y;
@@ -227,7 +238,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
 #endif
 #if (SPL<=0 && Read_files==1)  // Enforcing
                     if(tiempo_act<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+npy+i);
+                        interpolate_time(d_CC,d_tCC,timeCC,tiempo_act,h1,zb1,q1,npx,npy,npx+npy+i, tidesBd, tidesT, tidesNPT);
                     }
                     else{ // Salida libre
                         q1.y = q0.y;
@@ -270,7 +281,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
 
 
 
-inline void aristas_volumenes(int *d_fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC)
+inline void aristas_volumenes(int *d_fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double tiempo_act, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC, double *tidesBd, float *tidesT, int tidesNPT)
 {
     
     
@@ -281,7 +292,7 @@ inline void aristas_volumenes(int *d_fixH, double *d_dVh, double2 *d_dVhu, doubl
     dim3 threadBlockEst(NUM_HEBRAS_ANCHO_EST, NUM_HEBRAS_ALTO_EST);
     
     
-    volumenes<<<blockGridEst, threadBlockEst>>>(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FR, FU, FD, d_CC, d_tCC, timeCC);
+    volumenes<<<blockGridEst, threadBlockEst>>>(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, tiempo_act, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FR, FU, FD, d_CC, d_tCC, timeCC, tidesBd, tidesT, tidesNPT);
 
 //     sum_contribuciones<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, npx, npy, delta_T, dx, dy, epsilon_h, vmax, FL, FR, FU, FD);
     

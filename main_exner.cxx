@@ -9,7 +9,7 @@
 extern "C" int comprobarSoporteCUDA(int cudaDevice);
 extern "C" void inicializarGPU();
 
-extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double &tiempo, int CudaDevice);
+extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *prefijo,  double tiempo_tot, double tiempo_guardar, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup, double &tiempo, int CudaDevice, double *tides_bd, float *tides_time, int tidesNPT);
 
 /*********************/
 /* Fin funciones GPU */
@@ -23,7 +23,12 @@ int main(int argc, char *argv[])
     double *CC;
     double *tCC;  // Boundary conditions.
     int *fixH; // Fixed bathymetry
+    double *dyrup; // Dynamic rupture
+    float *time_dyrup; // time of dynamic rupture
     long unsigned int timeCC;
+    double *tides_bd;
+    float *tides_time;
+    int tidesNPT;
 	int soporteCUDA, err;
     int cudaDevice;
 	int npx, npy, nvol;
@@ -70,10 +75,13 @@ int main(int argc, char *argv[])
     }
 	inicializarGPU();
 
-    err = cargarDatosProblema(fich_ent, prefijo, &dVh, &dVhu, &dVH, &CC, &tCC, &fixH, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, tiempo_tot, tiempo_guardar, CFL, Q, DS, FR, Opar, OC, HQB, vmax, epsilon_h);
+    err = cargarDatosProblema(fich_ent, prefijo, &dVh, &dVhu, &dVH, &CC, &tCC, &fixH, &dyrup, &time_dyrup, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, tiempo_tot, tiempo_guardar, CFL, Q, DS, FR, Opar, OC, HQB, vmax, epsilon_h, &tides_bd, &tides_time, tidesNPT);
 	if (err > 0)
 		return EXIT_FAILURE;
 	cout << scientific;
+    // cout<<(tides_time)[0]<<endl;
+    // cout<<tides_time[1]<<endl;
+    // cout<<tides_time[2]<<endl;
     
     // Sponge layer dumping function and values at the boundary
     double *d;
@@ -87,17 +95,17 @@ int main(int argc, char *argv[])
 #endif
 
 
-	err = Exner(dVh, dVhu, dVH, fixH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, tiempo_gpu,cudaDevice);
+	err = Exner(dVh, dVhu, dVH, fixH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) prefijo.c_str(), tiempo_tot, tiempo_guardar, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, dyrup, time_dyrup, tiempo_gpu,cudaDevice, tides_bd, tides_time, tidesNPT);
 	if (err > 0) {
 		if (err == 1)
 			cerr << "Error: Not enough GPU memory" << endl;
 		else if (err == 2)
 			cerr << "Error: Not enough CPU memory" << endl;
-		liberarMemoria(dVh,dVhu,dVH,fixH);
+		liberarMemoria(dVh,dVhu,dVH,fixH, CC, tCC, dyrup, time_dyrup);
 		return EXIT_FAILURE;
 	}
 	cout << endl << "Total simulation time: " << tiempo_gpu << " sec." << endl;
-	liberarMemoria(dVh, dVhu, dVH,fixH);
+	liberarMemoria(dVh, dVhu, dVH,fixH,CC, tCC, dyrup, time_dyrup);
 #if SPL>0
     delete [] d;
 #endif

@@ -3,6 +3,7 @@
 #include <netcdf.h>
 #include "cini.cxx"
 #include "interpolations.cxx"
+#include "tides.cxx"
 
 int ncid_bati;
 int ncid_CI;
@@ -226,24 +227,31 @@ bool existeFichero(string fichero)
 	return existe;
 }
 
-void liberarMemoria(double *dVh,double2 *dVhu, double* dVH, int *fixH)
+void liberarMemoria(double *dVh,double2 *dVhu, double* dVH, int *fixH, double *CC, double *tCC, double *dyrup, float *time_dyrup)
 {
 	if (dVhu != NULL)			    delete [] (dVhu);
     if (dVh != NULL)			    delete [] (dVh);
     if (dVH != NULL)			    delete [] (dVH);
     if (fixH != NULL)               delete [] (fixH);
+
+    if (CC != NULL)               delete [] (CC);
+    if (tCC != NULL)               delete [] (tCC);
+    if (dyrup != NULL)               delete [] (dyrup);
+    if (time_dyrup != NULL)               delete [] (time_dyrup);
 }
 
 
 
 
 // Devuelve 0 si todo ha ido bien, 1 si no existe algun fichero, y 2 si no hay memoria CPU suficiente
-int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, int **fixH, unsigned long int &time_grid, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &tiempo_tot, double &tiempo_guardar, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &HQB, double &vmax, double &epsilon_h)
+int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, int **fixH, double **dyrup, float **time_dyrup, unsigned long int &time_grid, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &tiempo_tot, double &tiempo_guardar, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &HQB, double &vmax, double &epsilon_h, double **tides_bd, float **tides_time, int &tidesNPT)
 {
 	int i, j;
     int pos;
     string file_bat;
     string file_eta, file_fix_bathy;
+    string file_tides;
+    double SLR_correction;
  	char c;
     double R, porosity;
     
@@ -309,6 +317,12 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     fich >> c;
     std::getline(fich, line);
     fich >> file_fix_bathy;
+    fich >> c;
+    std::getline(fich, line);
+    fich >> SLR_correction;
+    fich >> c;
+    std::getline(fich, line);
+    fich >> file_tides;
 	fich.close();
     
 #if Manning ==0
@@ -323,6 +337,10 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
    int read_fixH=0;
     if(file_fix_bathy.compare("0")){
         read_fixH=1;
+    }
+   int do_tides=0;
+    if(file_tides.compare("0")){
+        do_tides=1;
     }
 
     
@@ -383,7 +401,8 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     double xmin_grid, ymin_grid;
     xmin_grid=xmin;
     ymin_grid=ymin;
-    
+
+
     
     xmin-=dx_grid*SPL;
     xmax+=dx_grid*SPL;
@@ -414,7 +433,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         if (fixH_aux == NULL) {
             cerr << "Error: No hay memoria CPU suficiente" << endl;
             delete[] fixH_aux;
-            liberarMemoria(*dVh,*dVhu,*dVH,*fixH);
+            liberarMemoria(*dVh,*dVhu,*dVH,*fixH,*CC,*tCC,*dyrup,*time_dyrup);
             return 2;
         }
         leerBatimetriaGRD(npx_grd, npy_grd, fixH_aux);  // Bathymetry read from file, no interpolation.
@@ -449,10 +468,15 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         delete[] eta_aux;
         return 2;
     }
-
-
-    
     leerCI_GRD(eta_aux, time_grid);  // Free surface read from file, no interpolation.
+
+    if(do_tides){
+        tides_prep(eta_aux,tides_bd,tides_time, npx, npy, file_tides, xmin, xmax, ymin, ymax, tidesNPT);
+    }
+    else{
+        tidesNPT=-1;
+    }
+
     double dx_CI, dy_CI;
     dx_CI = (xp_CI[npx_grd_CI-1]-xp_CI[0])/npx_grd_CI;
     dy_CI = (yp_CI[npy_grd_CI-1]-yp_CI[0])/npy_grd_CI;
@@ -525,6 +549,9 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     cerrarGRD(ncid_CI);
 //     printf("Done\n");
     printf("\n");
+
+    // for (int t=0;t<time_grid; t++)
+    // for (int i=0; i<(npy*2+npx*2); i++) printf("%.15f  \n",(*CC)[t*(2*npx+2*npy)*4+i*4] );
     
     
     dx = (xmax-xmin)/(npx);
@@ -538,7 +565,8 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
             pos=j*npx+i;
             
             (*dVH)[pos] = (double) (bathy_interpolated_spheric[pos]) ;
-            (*dVh)[pos] = (double) (eta_interpolated_spheric[pos]) *UNITS + (*dVH)[pos];
+            (*dVh)[pos] = (double) (eta_interpolated_spheric[pos]) *UNITS  + (*dVH)[pos]  + SLR_correction;
+            // (*dVh)[pos] = 5  + (*dVH)[pos]  + SLR_correction;
             (*dVh)[pos] *= ((*dVh)[pos]>=0.0);
             (*dVhu)[pos].x = 0.0;
             (*dVhu)[pos].y = 0.0;            
@@ -584,13 +612,17 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     *dVhu = new double2 [nvol]();
     *dVh = new double [nvol]();
     *dVH = new double [nvol]();
+
+    *time_dyrup = new float[40]; // It assumes range(0,400,10)
+    *dyrup = new double[nvol*40]();
     
 	if (*dVH == NULL) {
 		cerr << "Error: No hay memoria CPU suficiente" << endl;
- 		liberarMemoria(*dVh,*dVhu,*dVH,*fixH);
+ 		liberarMemoria(*dVh,*dVhu,*dVH,*fixH,*CC,*tCC,*dyrup,*time_dyrup);
 		return 2;
 	}
 
+	for (int t=0; t<40; t++) (*time_dyrup)[t] = t*10;
 
     for (j=0; j<npy; j++) {
         for (i=0; i<npx; i++) {
@@ -604,6 +636,14 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
             (*dVhu)[pos].x *= (*dVh)[pos];
             (*dVhu)[pos].y *= (*dVh)[pos];
             (*fixH)[pos] = fixed_bed_CI(x,y);
+
+            if(i>npx/2-5 && i<npx/2+5 && j<npy/2+5 && j>npy/2-5){
+                for (int t=0;t<40;t++){
+                    int posdy = pos + t *nvol;
+                    (*dyrup)[posdy] = -t*0.5   +  (*dVH)[pos];  // Fijate que el valor que entra es bathymetria + perturbacion
+                }
+            }
+
 
         }         
     }

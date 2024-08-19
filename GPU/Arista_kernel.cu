@@ -325,6 +325,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
             //             qr.y = hr * qr.x/(hr+EPSILON);
             //             
             //             qr.x = 0.0;
+            pos1=-1;
             procesarArista(hl, zbl, ql, hr, zbr, qr, 0, -1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
             #endif // Del WBC==2
             
@@ -364,7 +365,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
                 filtro_estado(hr, qr , epsilon_h);
                 #endif
                 
-//                 if(abs(hr-hl)>1e-11) printf("%d   %d   %.15f  \n", i, j, hr-hl);
+                pos1=-1;
                 procesarArista(hl, zbl, ql, hr, zbr, qr,0, 1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
             }
             else {

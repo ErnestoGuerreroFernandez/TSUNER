@@ -64,6 +64,9 @@ __device__ void aplica_fricciones(double2 &d_Ahu, double d0_dVh, double2 &d0_dVh
 
 
 
+
+
+
 __global__ void reconstruye(double* d_dVh, double2* d_dVhu, double* d_dVH, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu,int npx, int npy, double delta_T, double inv_dx, double inv_dy, double epsilon_h,double2* d_Ahu, double *d0_dVh, double2 *d0_dVhu) {
 
 

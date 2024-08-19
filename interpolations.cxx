@@ -60,7 +60,6 @@ inline double L2_2(double x, double x0, double x1, double x2){
 
 
 
-
 inline void dy_transform(double &val){
     val = (2*PI*Re)/360;
 }
@@ -369,9 +368,9 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     
 
 	
-    // We build the file XXXu.nc
-    file.erase(file.end()-4);
-    file.insert(file.end()-3,'u');
+    // We build the file XXXua.nc
+    file.erase(file.end()-5);
+    file.insert(file.end()-4,'u');
 	
 	int iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
 
@@ -433,8 +432,8 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 	check_errGRD_inte(iret);
     
     // We build the file XXXv.nc
-    file.erase(file.end()-4);
-    file.insert(file.end()-3,'v');
+    file.erase(file.end()-5);
+    file.insert(file.end()-4,'v');
 	
 	iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
 	check_errGRD_inte(iret);
