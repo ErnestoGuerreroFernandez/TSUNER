@@ -96,6 +96,18 @@ __global__ void calculo_hmax(double* d_hmax, double * d_dVh, int npx, int npy) {
     }
 
 }
+__global__ void calculo_bmin(double* d_bmin, double * d_VH0, int npx, int npy) {
+    int i,j;
+    int pos;
+    i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
+    j = blockIdx.y*NUM_HEBRAS_ALTO_EST + threadIdx.y;
+    if ((i<npx) && (j<npy)) {
+        pos=j*npx+i;
+        d_bmin[pos] = min(-d_bmin[pos],-d_VH0[pos]);
+    }
+}
+
+
 
 __global__ void set_inicializacion(double* d_hmax, int npx, int npy) {
     int i,j;
@@ -107,20 +119,22 @@ __global__ void set_inicializacion(double* d_hmax, int npx, int npy) {
        d_hmax[pos] = 0.0;
     }
 }
-
-
-
+__global__ void set_inicializacion_bmin(double *d_bmin, int npx, int npy){  // Pone a 0 d_bmin
+    int i,j;
+    int pos;
+    i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
+    j = blockIdx.y*NUM_HEBRAS_ALTO_EST + threadIdx.y;
+    if ((i<npx) && (j<npy)) {
+        pos=j*npx+i;
+        d_bmin[pos] = -1e30;
+    }
+}
 
 __device__ void spongeLayer(double *d_Ah, double2 *d_Ahu, double *d_Azb, int npx, int npy, double *d, int pos, int pos1, int pos2, int posd1, int posd2, double *CC, double *tCC, long unsigned int timeCC, double tiempo_act){
     
     double h1, h2, H1, H2;
     double2 q1, q2;
     
-
-    //     H1=H2=0.0;
-    //     h1=h2=1.0;
-    //     q1.x=q2.x=0.0;
-    //     q1.y=q2.y=0.0;
         
     // Esquina
     if(pos2>0){
@@ -164,7 +178,6 @@ __device__ double dynamicRuptureInterpolation(double *dyrup, float *time_dyrup, 
     double m, b;
     m = (dyrup[posCCp]-dyrup[posCC])/(time_dyrup[tp]-time_dyrup[t]);
     b = dyrup[posCC] - m*time_dyrup[t];
-    // printf("%.15f   %d\n",(m*tiempo_act+b),pos);
     return (m*tiempo_act+b);
 
 }
@@ -254,12 +267,6 @@ __global__ void actualiza_estados(double* d_Ah, double2* d_Ahu, double *d_Azb, d
         q.y = coef0 * d0_dVhu[pos].y + coef1 * d_Ahu[pos].y;
         d_Azb[pos] = coef0 * d0_dVH[pos] + coef1 * d_Azb[pos];
 
-        // if (tiempo_act<time_dyrup[39]){
-            // d_Azb[pos] = dynamicRuptureInterpolation(dyrup,time_dyrup,tiempo_act,pos,npx,npy);
-        // }
-
-        // if (i<50 && i>30 && tiempo_act<1)
-        // d_Azb[pos] -= 0.004;
 
         
         filtro_estado(h,q,epsilon_h);
@@ -268,7 +275,6 @@ __global__ void actualiza_estados(double* d_Ah, double2* d_Ahu, double *d_Azb, d
         d_Ahu[pos].x = q.x;
         d_Ahu[pos].y = q.y;
         
-//          if(j==npy-1) printf("%d   %.15f    %.15f    %.15f   \n",i,d_Ah[pos],d_Ahu[pos].x,d_Ahu[pos].y);
         
         if(k==order-1){
             d0_dVh[pos] = h;

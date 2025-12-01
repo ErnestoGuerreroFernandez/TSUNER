@@ -23,7 +23,7 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
     m = (CC[posCCp]-CC[posCC])/dt;
     b = CC[posCC] - m*tCC[t];
     h1 = m*tiempo_act+b;
-    h1*=UNITS;
+    // h1*=UNITS;
 
 
     m = (CC[posCCp+3]-CC[posCC+3])/dt;
@@ -35,12 +35,12 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
     m = (CC[posCCp+1]-CC[posCC+1])/dt;
     b = CC[posCC+1] - m*tCC[t];
     q1.x = m*tiempo_act+b;
-    q1.x*= UNITS* h1   ;
+    q1.x *= h1   ;
 
     m = (CC[posCCp+2]-CC[posCC+2])/dt;
     b = CC[posCC+2] - m*tCC[t];
     q1.y = m*tiempo_act+b;
-    q1.y*= UNITS*h1    ;
+    q1.y *= h1    ;
 
 
     // tides
@@ -62,7 +62,7 @@ __global__ void volumenes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_
 
 	int i = blockIdx.x*NUM_HEBRAS_ANCHO_EST + threadIdx.x;
 	int j = blockIdx.y*NUM_HEBRAS_ANCHO_EST  + threadIdx.y;
-    int pos0, pos1; 
+    int pos0, pos1;
     double h0, h1, zb0, zb1;
     double2 q0, q1;
     int fixed_sediment=0; // if 0, it does not move. If 1, it moves normally.

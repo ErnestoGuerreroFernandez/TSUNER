@@ -71,19 +71,19 @@ __device__ double bedload(double h, double2 un, double db, double dx){
     K1 = 8.0*u/(modu+EPSILON);
     aux=max(O-d_OC,0.0);
     qb=K1*d_Q*pow(aux,1.5)*(h>5*d_DS)*(h>d_HQB);
-
+*/
     // Ashida & Michiue
     K1 = 17.0*u/(modu+EPSILON);
-    qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB)*(h>5*d_DS);*/
+    qb=K1*d_Q*max(O-d_OC,0.0)*max(sqrt(O)-sqrt(d_OC),0.0)*(h>d_HQB)*(h>5*d_DS);
     
 
 
-    K1 = 40.0*u/(modu+EPSILON);
-    aux=max(O-d_OC,0.0);
-    qb=K1*d_Q*pow(aux,1.5)*max((sqrt(O)-sqrt(d_OC)),0.0)*(h>5*d_DS)*(h>d_HQB);
+    // K1 = 40.0*u/(modu+EPSILON);
+    // aux=max(O-d_OC,0.0);
+    // qb=K1*d_Q*pow(aux,1.5)*max((sqrt(O)-sqrt(d_OC)),0.0)*(h>5*d_DS)*(h>d_HQB);
 
 
-    
+
     return -qb;  // La explicacion de este signo se encuentra en apunte 1 del resolvedor de Riemann.
 }
 

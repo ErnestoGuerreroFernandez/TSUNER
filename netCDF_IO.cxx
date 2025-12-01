@@ -28,9 +28,10 @@ int main(){
 //     strcat(file_name,"_limited.nc");
 
     // Abrimos archivo para edicion con NC_WRITE
-    status = nc_open("sim.nc", NC_WRITE, &ncid);
+    status = nc_open("E0_3_movie2.nc", NC_WRITE, &ncid);
     if (status != NC_NOERR) handle_error(status);
-    
+
+
 
     // Cogemos dimensiones
     int dimId;
@@ -82,11 +83,11 @@ int main(){
             }
         }
     }
-    
+
     status = nc_open("sim_copia.nc", NC_WRITE, &ncid2);
     if (status != NC_NOERR) handle_error(status);
 
-    
+
     
         // Cogemos la id de la variable
     status = nc_inq_varid(ncid2, "eta", &varid);

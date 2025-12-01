@@ -49,7 +49,7 @@ void leerTamanoMallaGRD(const char *nombre_fich,int *nvx, int *nvy) {
 
 	iret = nc_open(nombre_fich, NC_NOWRITE, &id);
 	check_errGRD(iret);
-	// Leemos el tamaño de la malla.
+	// Leemos el tamano de la malla.
 	// El nombre de las dimensiones puede ser (lon,lat) o (x,y).
 	iret = nc_inq_dimid(id, "lon", &lon_dim);
 	if (iret != NC_NOERR) {
@@ -220,7 +220,7 @@ bool existeFichero(string fichero)
 	else {
 		// No hemos obtenido los atributos del fichero. Notar que esto puede
 		// significar que no tenemos permiso para acceder al fichero. Para
-		// hacer esta comprobaci�n, comprobar los valores de intStat.
+		// hacer esta comprobacion, comprobar los valores de intStat.
 		existe = false;
 	}
 
@@ -343,6 +343,8 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         do_tides=1;
     }
 
+    *dyrup = NULL;
+    *time_dyrup = NULL;
     
     
     npx+=2*SPL;
@@ -481,7 +483,7 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
     dx_CI = (xp_CI[npx_grd_CI-1]-xp_CI[0])/npx_grd_CI;
     dy_CI = (yp_CI[npy_grd_CI-1]-yp_CI[0])/npy_grd_CI;
     interpolate_spherics(xmin,xmax,ymin,ymax, xp_CI[0], yp_CI[0], npx_grd_CI, npy_grd_CI, dx_CI, dy_CI, npx, npy, eta_aux, eta_interpolated);
-    fix_eta(eta_interpolated, bathy_interpolated, npx, npy);
+    fix_eta(eta_interpolated, bathy_interpolated, npx, npy, SLR_correction);
     delete [] eta_aux;
 //     printf("Done\n");
     printf("\n");
@@ -496,10 +498,10 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
         cerr << "Error: No hay memoria CPU suficiente" << endl;
         return 2;
     }
-    
 
 
-    interpolate_CC(file_eta, (*CC), (*tCC), npx, npy, xmin, xmax, ymin, ymax,  xp_CI[0], yp_CI[0],  time_grid, dx_CI, dy_CI, bathy_interpolated, ncid_CI);
+
+    interpolate_CC(file_eta, (*CC), (*tCC), npx, npy, xmin, xmax, ymin, ymax,  xp_CI[0], yp_CI[0],  time_grid, dx_CI, dy_CI, bathy_interpolated, ncid_CI, SLR_correction);
     delete [] xp_CI;
     delete [] yp_CI;
 //     printf("Done\n");
@@ -550,8 +552,6 @@ int cargarDatosProblema(string fich_ent, string &prefijo, double **dVh, double2 
 //     printf("Done\n");
     printf("\n");
 
-    // for (int t=0;t<time_grid; t++)
-    // for (int i=0; i<(npy*2+npx*2); i++) printf("%.15f  \n",(*CC)[t*(2*npx+2*npy)*4+i*4] );
     
     
     dx = (xmax-xmin)/(npx);

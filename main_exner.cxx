@@ -79,9 +79,6 @@ int main(int argc, char *argv[])
 	if (err > 0)
 		return EXIT_FAILURE;
 	cout << scientific;
-    // cout<<(tides_time)[0]<<endl;
-    // cout<<tides_time[1]<<endl;
-    // cout<<tides_time[2]<<endl;
     
     // Sponge layer dumping function and values at the boundary
     double *d;

@@ -18,7 +18,8 @@ double profundidad(double x, double y) {  // Initial bathymetry function, H.
      
      // H = - 3.0*exp(- 5.0* ((x-2)*(x-2) + (y-0)*(y-0)) ) - 3.0*exp(- 5.0* ((x+2)*(x+2) + (y-0)*(y-0)) );
     
-    // H= 0.0;
+    H= 0.0;
+    // H=-1.0*exp(- 2.0* ((x-0)*(x-0)  +  (y-0)*(y-0)) )  ;
     return H;
 }
 
@@ -27,12 +28,16 @@ double h_inicial (double x, double y, double zb=0.0) {  // Initial water depth, 
     double h1;
     h1= profundidad(x,y) + 1.0 +    1.5*exp(-5.0* ((x-0)*(x-0)   +    (y-0)*(y-0)))  + 0*35.0*exp(-5.0* ((x-0)*(x-0) + (y+2)*(y+2)));
 //     h1=profundidad(x,y) + 10.0 + 755.0*exp(- 5.0* ((x-233)*(x-233)  +  (y-45)*(y-45)) )  ;
-    
+    h1= profundidad(x,y) +1.8 + 4.5*exp(-5.0* ((x+0)*(x+0)   +  0*  (y-0)*(y-0)));
+
     
 //     h1= profundidad(x,y) + 1.0 +  35.0*exp(-45.0* ((x-232)*(x-232)   + (y-44)*(y-44)))  + 0*35.0*exp(-5.0* ((x-0)*(x-0) + (y+2)*(y+2)));
 //     h1 = 3;
     // h1 = 0.001 *(x<-4);
     // h1 = profundidad(x,y) + 2;
+    h1= profundidad(x,y) +2.0 + 4.5*exp(-5.0* ((x+0)*(x+0)   +    (y-0)*(y-0)));
+    // h1 = profundidad(x,y) + 2.0;
+
     h1=h1*(h1>0.0);
     return h1;
 }

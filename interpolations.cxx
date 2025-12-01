@@ -349,7 +349,7 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 
 #else
 
-void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, double xmin, double xmax, double ymin, double ymax, double xmin_grid, double ymin_grid, long unsigned int time, double dx_grid, double dy_grid, double *H, int id){
+void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, double xmin, double xmax, double ymin, double ymax, double xmin_grid, double ymin_grid, long unsigned int time, double dx_grid, double dy_grid, double *H, int id, double SLR_correction){
     
     
     double x,y;
@@ -514,6 +514,12 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+i*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+i*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
             
+
+            CC[posC+i*4] *= UNITS;
+            CC[posC+i*4+1] *= UNITS;
+            CC[posC+i*4+2] *= UNITS;
+            CC[posC+i*4] += SLR_correction;
+
             /*double m,b,x0;
             x0 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
             m = (fh[pos1]-fh[pos])/dx_grid;
@@ -578,6 +584,12 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(npx+npy+i)*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
             CC[posC+(npx+npy+i)*4+3] = H[(npy-1)*npx+i];
             
+            CC[posC+(npx+npy+i)*4] *= UNITS;
+            CC[posC+(npx+npy+i)*4+1] *= UNITS ;
+            CC[posC+(npx+npy+i)*4+2] *= UNITS;
+
+            CC[posC+(npx+npy+i)*4] += SLR_correction;
+
             if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
             if(CC[posC+(npx+npy+i)*4+1]<-1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
             if(CC[posC+(npx+npy+i)*4+2]<-1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
@@ -631,7 +643,12 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(2*npx+npy+j)*4] = N0*fh[posLD] + N1*fh[posD] + N2*fh[posRD] + N3*fh[posL] + N4*fh[pos] + N5*fh[posR] + N6*fh[posLU] + N7*fh[posU] + N8*fh[posRU];
             CC[posC+(2*npx+npy+j)*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+(2*npx+npy+j)*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
+
+            CC[posC+(2*npx+npy+j)*4] *= UNITS;
+            CC[posC+(2*npx+npy+j)*4+1] *= UNITS;
+            CC[posC+(2*npx+npy+j)*4+2] *= UNITS;
             
+            CC[posC+(2*npx+npy+j)*4] += SLR_correction;
             
             /*
             double m,b,y0;
@@ -694,8 +711,12 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(npx+j)*4] = N0*fh[posLD] + N1*fh[posD] + N2*fh[posRD] + N3*fh[posL] + N4*fh[pos] + N5*fh[posR] + N6*fh[posLU] + N7*fh[posU] + N8*fh[posRU];
             CC[posC+(npx+j)*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+(npx+j)*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
+
+            CC[posC+(npx+j)*4] *= UNITS;
+            CC[posC+(npx+j)*4+1] *= UNITS;
+            CC[posC+(npx+j)*4+2] *= UNITS;
             
-            
+            CC[posC+(npx+j)*4] += SLR_correction;
             
             
             
@@ -824,10 +845,11 @@ void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, do
 
 }
 
-void fix_eta(double *p, double *H, int npx, int npy){
+void fix_eta(double *p, double *H, int npx, int npy, double SLR_correction){
     for (int j=0; j<npy; j++){
         for (int i=0; i<npx; i++){
             int posp = j*npx +i;
+            p[posp] -= SLR_correction;
             if(p[posp]<-1e20) p[posp] = H[posp];
             if(p[posp]>1e20) p[posp] = H[posp];
         }

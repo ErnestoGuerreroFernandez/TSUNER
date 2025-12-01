@@ -16,6 +16,7 @@ int eta_id;
 int vel_id[2];
 int hmax_id;
 int zb_id;
+int bmin_id;
 
 void check_err(int iret)
 {
@@ -26,8 +27,7 @@ void check_err(int iret)
 }
 
 
-
-void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, double* ygrid, char *prefijo, int *p_ncid, int *time_id, int& eta_id, int *vel_id, int npx, int npy, double tiempo_tot, double *bati)
+void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, double* ygrid, char *prefijo, int *p_ncid, int *time_id, int& eta_id, int *vel_id, int npx, int npy, double tiempo_tot, double *bati, double R, double DS, double FR, double porosity, double OC)
 {
 	char nombre_fich[256];
 	char cadena[256];
@@ -59,10 +59,6 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	iret = nc_def_dim(ncid, "y", npy, &y_dim);
 	check_err(iret);
     
-//     iret = nc_def_dim(ncid, "grid_x", npx, &grid_x_dim);
-//     check_err(iret);
-//     iret = nc_def_dim(ncid, "grid_y", npy, &grid_y_dim);
-//     check_err(iret);
 	iret = nc_def_dim(ncid, "time", NC_UNLIMITED, &time_dim);
 	check_err(iret);
 
@@ -72,14 +68,8 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	iret = nc_def_var(ncid, "y", NC_DOUBLE, 1, &y_dim, &y_id);
 	check_err(iret);
     
-//     iret = nc_def_var(ncid, "grid_x", NC_DOUBLE, 1, &grid_x_dim, &grid_x_id);
-//     check_err(iret);
-//     iret = nc_def_var(ncid, "grid_y", NC_DOUBLE, 1, &grid_y_dim, &grid_y_id);
-//     check_err(iret);
     grid_dims[0] = y_dim;
     grid_dims[1] = x_dim;
-//     iret = nc_def_var(ncid, "b", NC_DOUBLE, 2, grid_dims, &grid_id);
-//     check_err(iret);
     
     var_dims[0] = time_dim;
     var_dims[1] = y_dim;
@@ -88,6 +78,9 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
     check_err(iret);
     
     iret=nc_def_var(ncid,"hmax",NC_DOUBLE,2,grid_dims,&hmax_id);	
+	check_err(iret);
+	iret=nc_def_var(ncid,"bmin",NC_DOUBLE,2,grid_dims,&bmin_id);
+	check_err(iret);
     var_dims[0] = time_dim;
     var_dims[1] = y_dim;
     var_dims[2] = x_dim;
@@ -124,17 +117,6 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	// Asignamos attributos
 	fill_double = -1e+30;
     
-	
-//     iret = nc_put_att_text(ncid, grid_id, "long_name", 15, "Grid bathymetry");
-//     check_err(iret);
-//     iret = nc_put_att_text(ncid, grid_id, "standard_name", 5, "depth");
-//     check_err(iret);
-//     iret = nc_put_att_text(ncid, grid_id, "units", 6, "meters");
-//     check_err(iret);
-//     iret = nc_put_att_double(ncid, grid_id, "missing_value", NC_DOUBLE, 1, &fill_double);
-//     check_err(iret);
-//     iret = nc_put_att_double(ncid, grid_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
-//     check_err(iret);
 
     iret = nc_put_att_text(ncid, hmax_id, "long_name", 4, "hmax");
     check_err(iret);
@@ -147,18 +129,18 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
     iret = nc_put_att_double(ncid, hmax_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
     check_err(iret);
 
+	iret = nc_put_att_text(ncid, bmin_id, "long_name", 4, "bmin");
+	check_err(iret);
+	iret = nc_put_att_text(ncid, bmin_id, "standard_name", 4, "bmin");
+	check_err(iret);
+	iret = nc_put_att_text(ncid, bmin_id, "units", 6, "meters");
+	check_err(iret);
+	iret = nc_put_att_double(ncid, bmin_id, "missing_value", NC_DOUBLE, 1, &fill_double);
+	check_err(iret);
+	iret = nc_put_att_double(ncid, bmin_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
+	check_err(iret);
 
 
-
-//     iret = nc_put_att_text(ncid, grid_x_id, "long_name", 6, "x Grid");
-//     check_err(iret);
-//     iret = nc_put_att_text(ncid, grid_x_id, "units", 6, "meters");
-//     check_err(iret);
-//     iret = nc_put_att_text(ncid, grid_y_id, "long_name", 6, "y Grid");
-//     check_err(iret);
-//     iret = nc_put_att_text(ncid, grid_y_id, "units", 6, "meters");
-//     check_err(iret);
-	
 
 	iret = nc_put_att_text(ncid, x_id, "long_name", 5, "x dim");
 	check_err(iret);
@@ -210,6 +192,26 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	val_double = tiempo_tot;
 	iret = nc_put_att_double(ncid, NC_GLOBAL, "simulation_time", NC_DOUBLE, 1, &val_double);
 	check_err(iret);
+	val_double = R;
+	iret = nc_put_att_double(ncid, NC_GLOBAL, "Sediment_relative_density", NC_DOUBLE, 1, &val_double);
+	check_err(iret);
+	val_double = DS;
+	iret = nc_put_att_double(ncid, NC_GLOBAL, "Sediment_mean_diameter", NC_DOUBLE, 1, &val_double);
+	check_err(iret);
+	val_double = FR*8;
+	iret = nc_put_att_double(ncid, NC_GLOBAL, "Friction", NC_DOUBLE, 1, &val_double);
+	check_err(iret);
+	val_double = porosity;
+	iret = nc_put_att_double(ncid, NC_GLOBAL, "Sediment_porosity", NC_DOUBLE, 1, &val_double);
+	check_err(iret);
+	val_double = OC;
+	iret = nc_put_att_double(ncid, NC_GLOBAL, "Sediment_critical_theta", NC_DOUBLE, 1, &val_double);
+	check_err(iret);
+
+
+	val_double = tiempo_tot;
+	iret = nc_put_att_double(ncid, NC_GLOBAL, "simulation_time", NC_DOUBLE, 1, &val_double);
+	check_err(iret);
     
     
     
@@ -226,18 +228,10 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	iret = nc_put_var_double(ncid, y_id, ygrid);
 	check_err(iret);
     
-
-	
-//     iret = nc_put_var_double(ncid, grid_x_id, xgrid);
-//     check_err(iret);
-//     iret = nc_put_var_double(ncid, grid_y_id, ygrid);
-//     check_err(iret);
-//     iret = nc_put_var_double(ncid, grid_id, bati);
-//     check_err(iret);
 	
 }
 
-int initNC(char *prefijo, int npx,int npy, double xmin, double xmax, double ymin, double ymax, double tiempo_tot,  double *bati)
+int initNC(char *prefijo, int npx,int npy, double xmin, double xmax, double ymin, double ymax, double tiempo_tot,  double *bati, double R, double DS, double FR, double porosity, double OC)
 {
 	double *xgrid, *ygrid;
     double dx,dy;
@@ -266,7 +260,7 @@ int initNC(char *prefijo, int npx,int npy, double xmin, double xmax, double ymin
 	for (i=0; i<npy; i++)
 		ygrid[i] = ymin+(i+0.5)*dy;
 
-	fgennc(xmin, xmax, ymin, ymax, xgrid, ygrid, prefijo, &ncid, &timef, eta_id, vel_id,npx, npy, tiempo_tot, bati);
+	fgennc(xmin, xmax, ymin, ymax, xgrid, ygrid, prefijo, &ncid, &timef, eta_id, vel_id,npx, npy, tiempo_tot, bati, R, DS, FR, porosity, OC);
 
 	
     delete [] xgrid;
@@ -360,7 +354,11 @@ void write_hmax(double *hmax) {
   int iret;
   iret = nc_put_var_double(ncid, hmax_id, hmax);
   check_err(iret);
-
+}
+void write_bmin(double *bmin) {
+	int iret;
+	iret = nc_put_var_double(ncid, bmin_id, bmin);
+	check_err(iret);
 }
 void closeNC()
 {

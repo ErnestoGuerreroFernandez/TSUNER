@@ -77,9 +77,10 @@ void guardarNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num
     
 }
 
-void liberarMemoria(double *d_dVh, double2 *d_dVhu, double* d_dVH, double *d_Ah, double *d_Azb, double2 *d_Ahu, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, double* reconsLh, double* reconsRh, double *reconsDh, double *reconsUh, double *reconsDzb, double *reconsUzb, double *reconsLzb, double *reconsRzb, double2* reconsDhu, double2* reconsUhu, double2 *reconsLhu, double2 *reconsRhu, double* d_hmax, double *d_deltaTV, double *d_CC, double *d_tCC, double *FL, double *FRR, double *FU, double *FD)
+void liberarMemoria(double *d_dVh, double2 *d_dVhu, double* d_dVH, double *d_Ah, double *d_Azb, double2 *d_Ahu, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, double* reconsLh, double* reconsRh, double *reconsDh, double *reconsUh, double *reconsDzb, double *reconsUzb, double *reconsLzb, double *reconsRzb, double2* reconsDhu, double2* reconsUhu, double2 *reconsLhu, double2 *reconsRhu, double* d_hmax, double *d_deltaTV, double *d_CC, double *d_tCC, double *FL, double *FRR, double *FU, double *FD, double *d_bmin)
 {
     cudaFree(d_hmax);
+    cudaFree(d_bmin);
     cudaFree(d_dVh);
     cudaFree(d_dVhu);
     cudaFree(d_dVH);
@@ -131,7 +132,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
 
     
     
-    double *d_hmax;
+    double *d_hmax, *d_bmin;
     double *reconsLh, *reconsRh, *reconsUh, *reconsDh;
     double *reconsLzb, *reconsRzb, *reconsUzb, *reconsDzb;
     double2 *reconsLhu, *reconsRhu, *reconsUhu, *reconsDhu;
@@ -156,7 +157,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     int tam_datosVolDouble2 = nvol*sizeof(double2);
     
     double tiempo_act, delta_T;
-    double sig_tiempo_guardar = 0.0;
+
     StopWatchInterface *timer = NULL;
     int iter;
     
@@ -175,6 +176,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     
     
     err=cudaMalloc((void **)&d_hmax,tam_datosVolDouble);
+    err+=cudaMalloc((void **)&d_bmin,tam_datosVolDouble);
     err+=cudaMalloc((void **)&d_dVh, tam_datosVolDouble);
     err+=cudaMalloc((void **)&d_dVhu, tam_datosVolDouble2);
 
@@ -233,6 +235,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
 
     if (err >0) {
         cudaFree(d_hmax);
+        cudaFree(d_bmin);
         cudaFree(d_dVh);
         cudaFree(d_dVhu);
         cudaFree(d_dVH);
@@ -279,11 +282,6 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
         return 1;
     }
     
-    // Tamano del grid y de bloque en el procesamiento de aristas
-//     dim3 blockGridVer1(iDivUp(num_aristas_ver1/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
-//     dim3 blockGridVer2(iDivUp(num_aristas_ver2/npy, NUM_HEBRAS_ANCHO_ARI), iDivUp(npy, NUM_HEBRAS_ALTO_ARI));
-//     dim3 blockGridHor1(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor1/npx, NUM_HEBRAS_ALTO_ARI));
-//     dim3 blockGridHor2(iDivUp(npx, NUM_HEBRAS_ANCHO_ARI), iDivUp(num_aristas_hor2/npx, NUM_HEBRAS_ALTO_ARI));
     // Tamano del grid y bloques en el calculo del nuevo estado
     dim3 blockGridEst(iDivUp(npx, NUM_HEBRAS_ANCHO_EST), iDivUp(npy, NUM_HEBRAS_ALTO_EST));
     dim3 threadBlockEst(NUM_HEBRAS_ANCHO_EST, NUM_HEBRAS_ALTO_EST);
@@ -323,7 +321,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     if (vec == NULL) {
         delete [] vec;
         
-        liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD);
+        liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD,d_bmin);
         if (tidesNPT>0){
             cudaFree(d_tidesBd);
             cudaFree(d_tidesT);
@@ -334,9 +332,20 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     for (int i=0; i<nvol; i++) {
         vec[i] = dVH[i];
     }
-    iter = initNC(prefijo, npx, npy, xmin, xmax, ymin, ymax, tiempo_tot,vec);
+
+    cudaMemcpyToSymbol(d_OC,&OC, sizeof(double));
+    cudaMemcpyToSymbol(d_FR,&FR, sizeof(double));
+    cudaMemcpyToSymbol(d_Opar,&Opar, sizeof(double));
+    cudaMemcpyToSymbol(d_DS,&DS, sizeof(double));
+    cudaMemcpyToSymbol(d_Q,&Q, sizeof(double));
+    cudaMemcpyToSymbol(d_HQB,&HQB, sizeof(double));
+    double R, porosity;
+    R = 1 + FR/(Opar*G*DS);
+    porosity = 1 - DS*sqrt(FR/Opar)/Q;
+    iter = initNC(prefijo, npx, npy, xmin, xmax, ymin, ymax, tiempo_tot,vec, R, DS, FR, porosity, OC);
+
     if (iter == 1) {
-        liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD);
+        liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD,d_bmin);
         if (tidesNPT>0){
             cudaFree(d_tidesBd);
             cudaFree(d_tidesT);
@@ -346,6 +355,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     
     
     set_inicializacion<<<blockGridEst, threadBlockEst>>>(d_hmax,npx,npy);  // Pone a 0 d_hmax
+    set_inicializacion_bmin<<<blockGridEst, threadBlockEst>>>(d_bmin,npx,npy);  // Pone a 0 d_bmin
     // CALCULO DEL DELTA_T INICIAL
     obtenerDeltaTVolumenesGPU<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_deltaTV, npx, npy,dx, dy,CFL, epsilon_h);
     delta_T = obtenerMinimoReduccion<double>(d_deltaTV, nvol);
@@ -356,7 +366,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
     sdkCreateTimer(&timer);
     sdkStartTimer(&timer);
     tiempo_act = 0.0;
-    
+    double sig_tiempo_guardar = tiempo_act;
     
     while (tiempo_act < tiempo_tot) {
         // Guardamos el estado actual, si procede
@@ -400,6 +410,7 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
             tiempo_act += delta_T;
 
             calculo_hmax<<<blockGridEst, threadBlockEst>>>(d_hmax,d_dVh,npx,npy);
+            calculo_bmin<<<blockGridEst, threadBlockEst>>>(d_bmin,d_dVH,npx,npy);
             obtenerDeltaTVolumenesGPU<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_deltaTV, npx, npy,dx, dy,CFL, epsilon_h);
 
             delta_T = obtenerMinimoReduccion<double>(d_deltaTV, nvol);
@@ -420,11 +431,13 @@ extern "C" int Exner(double *dVh, double2 *dVhu, double *dVH, int *fixH, double 
         cudaDeviceSynchronize();
         cudaMemcpy(vec, d_hmax, tam_datosVolDouble, cudaMemcpyDeviceToHost);
         write_hmax(vec);
+        cudaMemcpy(vec, d_bmin, tam_datosVolDouble, cudaMemcpyDeviceToHost);
+        write_bmin(vec);
         sdkStopTimer(&timer);
         tiempo = sdkGetTimerValue(&timer)*0.001;  // En segundos
         
         sdkDeleteTimer(&timer);
-        liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD);
+        liberarMemoria(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD,d_bmin);
         if (tidesNPT>0){
             cudaFree(d_tidesBd);
             cudaFree(d_tidesT);

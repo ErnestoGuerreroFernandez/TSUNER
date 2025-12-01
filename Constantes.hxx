@@ -35,27 +35,27 @@
 #define WBC         1  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
 #define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer. Do not use if Read_files==0
 
-#define Read_files  1 // If 1, it reads the initial condition, bathymetry and boundary conditions from the files in data.dat. If 0, it reads the initial condition from the functions defined in cini.cxx.
+#define Read_files  0 // If 1, it reads the initial condition, bathymetry and boundary conditions from the files in data.dat. If 0, it reads the initial condition from the functions defined in cini.cxx.
 
 using namespace std;
 
-// Tama�o de un bloque en el procesamiento de las aristas
+// Size of the computational block for edges (Riemann solver)
 #define NUM_HEBRAS_ANCHO_ARI 8
 #define NUM_HEBRAS_ALTO_ARI  8
-// Tama�o de un bloque en el c�lculo del nuevo estado y el delta_T
+// Size of the computational block for volumens Tama�o de un bloque en el calculo del nuevo estado y el delta_T
 #define NUM_HEBRAS_ANCHO_EST 8
 #define NUM_HEBRAS_ALTO_EST  8
 
-// Redondea a / b al mayor entero m�s cercano
+// Round up a/b to the bigger closest integrer
 #define iDivUp(a,b)  (((a)%(b) != 0) ? ((a)/(b) + 1) : ((a)/(b)))
 
-// Redondea a / b al menor entero m�s cercano
+// Round up a/b to the smaller closest integrer
 #define iDivDown(a,b)  ((a)/(b))
 
-// Alinea a al mayor entero m�ltiplo de b m�s cercano
+// Aligns a to the biggest inegrer cloeset to b and that its multiple of b
 #define iAlignUp(a,b)  (((a)%(b) != 0) ? ((a)-(a) % (b)+(b)) : (a))
 
-// Alinea a al menor entero m�ltiplo de b m�s cercano
+// Aligns a to the smallest inegrer cloeset to b and that its multiple of b
 #define iAlignDown(a,b)  ((a)-(a) % (b))
 
 #ifndef GPU_VAR
