@@ -1,5 +1,22 @@
+// TSUNER Copyright (C) 2025 Ernesto Guerrero Fernandez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
+
 #include <netcdf.h>
-#include "Constantes.hxx" 
+#include "Sim_parameters.hxx" 
 
 
 bool ErrorNetCDF_inte;
@@ -20,10 +37,10 @@ void printProgress(double percentage) {
 
 void check_errGRD_inte(int iret)
 {
-        if ((iret != NC_NOERR) && (! ErrorNetCDF_inte)) {
-                fprintf(stderr, "%s\n", nc_strerror(iret));
-                ErrorNetCDF_inte = true;
-        }
+    if ((iret != NC_NOERR) && (! ErrorNetCDF_inte)) {
+        fprintf(stderr, "%s\n", nc_strerror(iret));
+        ErrorNetCDF_inte = true;
+    }
 }
 
 
@@ -73,15 +90,15 @@ inline void dx_transform(double ymin, double dy, int tam, double xmax, double xm
         dmax = max(dmax,dx[i]*(xmax-xmin));
         dx[i] *= dx_cartesianas;
     }
-//     return 2*Re*asin( sqrt( cos(phi*PI/180)*cos(phi*PI/180)*sin(0.5*(alpha2-alpha1)*PI/180) *sin(0.5*(alpha2-alpha1)*PI/180) )  );
+    //     return 2*Re*asin( sqrt( cos(phi*PI/180)*cos(phi*PI/180)*sin(0.5*(alpha2-alpha1)*PI/180) *sin(0.5*(alpha2-alpha1)*PI/180) )  );
 }
 
 
-#if 0
+#if 0 // Linear interpolation
 
 void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, double xmin, double xmax, double ymin, double ymax, double xmin_grid, double ymin_grid, long unsigned int time, double dx_grid, double dy_grid, double *H, int id){
-    
-    
+
+
     double x,y;
     double dx,dy;
 //     double dx_grid, dy_grid;
@@ -91,17 +108,17 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     int var_id, dimId;
 // 	int id = ncid_CI;
     long unsigned int npx_grd, npy_grd;
-    
 
-    
+
+
     double *fh, *fhu, *fhv;
-    
 
-	
+
+
     // We build the file XXXu.nc
     file.erase(file.end()-4);
     file.insert(file.end()-3,'u');
-	
+
 	int iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
 
     iret = nc_inq_dimid(idu, "lat", &dimId);
@@ -111,7 +128,7 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     }
     iret = nc_inq_dimlen(idu, dimId, &npy_grd);
     check_errGRD_inte(iret);
-    
+
     iret = nc_inq_dimid(idu, "lon", &dimId);
     if (iret != NC_NOERR) {
         iret = nc_inq_dimid(idu, "LON", &dimId);
@@ -119,17 +136,17 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     }
     iret = nc_inq_dimlen(idu, dimId, &npx_grd);
     check_errGRD_inte(iret);
-    
+
     iret = nc_inq_dimid(idu, "time", &dimId);
     if (iret != NC_NOERR) {
         iret = nc_inq_dimid(idu, "TIME", &dimId);
 		check_errGRD_inte(iret);
     }
     check_errGRD_inte(iret);
-    
+
     static size_t start_t[1] = {0};
 	static size_t count_t[1] = {time};
-    
+
     iret = nc_inq_varid(idu, "time", &var_id);
     if (iret != NC_NOERR) {
         iret = nc_inq_varid(idu, "TIME", &var_id);
@@ -137,20 +154,20 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     }
 	iret = nc_get_vara_double(idu, var_id, start_t, count_t, tCC);
 	check_errGRD_inte(iret);
-    
-    
+
+
     static size_t start[3] = {0, 0, 0};
 	static size_t count[3] = {time, npy_grd, npx_grd};
-    
+
     fhu=new double[time*npx_grd*npy_grd]();
     fhv=new double[time*npx_grd*npy_grd]();
     fh=new double[time*npx_grd*npy_grd]();
     if (fh == NULL) {
-		cerr << "Error: No hay memoria CPU suficiente" << endl;
+		cerr << "Error: Not enough CPU memory" << endl;
 		exit(-1);
 	}
-    
-    
+
+
     iret = nc_inq_varid(idu, "ua_lc", &var_id);
     if (iret != NC_NOERR) {
         iret = nc_inq_varid(idu, "UA", &var_id);
@@ -160,11 +177,11 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 	check_errGRD_inte(iret);
     iret = nc_close(idu);
 	check_errGRD_inte(iret);
-    
+
     // We build the file XXXv.nc
     file.erase(file.end()-4);
     file.insert(file.end()-3,'v');
-	
+
 	iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
 	check_errGRD_inte(iret);
     iret = nc_inq_varid(idu, "va_lc", &var_id);
@@ -177,7 +194,7 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     iret = nc_close(idu);
 	check_errGRD_inte(iret);
 
-    
+
 	iret = nc_inq_varid(id, "ha_lc", &var_id);
     if (iret != NC_NOERR) {
 	iret = nc_inq_varid(id, "HA", &var_id);
@@ -189,11 +206,11 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 
     dx = (xmax-xmin)/npx;
     dy = (ymax-ymin)/npy;
-    
 
-    
+
+
 //     double dmax = xmax;
-    
+
     for (int t=0; t<time; t++){
         int pos, pos0, pos1;
         int posC = t*(2*npx+2*npy)*4;
@@ -205,44 +222,44 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             xt=x;
 
 //             N0=N2=0;N1=1;
-            
+
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
             if(i_grid>npx_grd-1) i_grid=npx_grd-1;
             j_grid = int((y - ymin_grid - 0.5*dy_grid)/dy_grid);
             if(j_grid>npy_grd-1) j_grid=npy_grd-1;
-            
-            
-            double x0 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
-            N0 = L0_lineal(xt,x0,x0+dx_grid); 
+
+
+            double x0 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid;
+            N0 = L0_lineal(xt,x0,x0+dx_grid);
             N1 = L1_lineal(xt,x0,x0+dx_grid);
             N2 = L2_lineal(xt,x0,x0+dx_grid);
 
-            N0 = L0_2(xt,x0-dx_grid,x0,x0+dx_grid); 
+            N0 = L0_2(xt,x0-dx_grid,x0,x0+dx_grid);
             N1 = L1_2(xt,x0-dx_grid,x0,x0+dx_grid);
             N2 = L2_2(xt,x0-dx_grid,x0,x0+dx_grid);
 
-            
+
             // Frontera inf
             pos = t*npx_grd*npy_grd + npx_grd*j_grid + i_grid;
             pos0 = pos-1*(i_grid>0);
             pos1 = pos+1*(i_grid<npx_grd-1);
-            
+
             CC[posC+i*4] = N0 * fh[pos0] + N1*fh[pos] + N2*fh[pos1];
             CC[posC+i*4+1] = N0 * fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
             CC[posC+i*4+2] = N0 * fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+i*4+3] = H[i];
-            
-            
-            
 
-            if(CC[posC+i*4]<-1e20) CC[posC+i*4] = H[i]; 
-            if(CC[posC+i*4+1]<-1e20) CC[posC+i*4+1] = 0.0; 
+
+
+
+            if(CC[posC+i*4]<-1e20) CC[posC+i*4] = H[i];
+            if(CC[posC+i*4+1]<-1e20) CC[posC+i*4+1] = 0.0;
             if(CC[posC+i*4+2]<-1e20) CC[posC+i*4+2] = 0.0;
-            if(CC[posC+i*4]>1e20) CC[posC+i*4] = H[i]; 
-            if(CC[posC+i*4+1]>1e20) CC[posC+i*4+1] = 0.0; 
+            if(CC[posC+i*4]>1e20) CC[posC+i*4] = H[i];
+            if(CC[posC+i*4+1]>1e20) CC[posC+i*4+1] = 0.0;
             if(CC[posC+i*4+2]>1e20) CC[posC+i*4+2] = 0.0;
-            
-            
+
+
             // Frontera sup
             y = ymax ;
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
@@ -252,30 +269,30 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             pos = t*npx_grd*npy_grd + (j_grid)*npx_grd + i_grid;
             pos0 = pos-1*(i_grid>0);
             pos1 = pos+1*(i_grid<npx_grd-1);
-            
-            
+
+
             CC[posC+(npx+npy+i)*4]   = N0*fh[pos0] + N1*fh[pos] + N2*fh[pos1];
             CC[posC+(npx+npy+i)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
             CC[posC+(npx+npy+i)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+(npx+npy+i)*4+3] = H[(npy-1)*npx+i];
-            
-            if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
-            if(CC[posC+(npx+npy+i)*4+1]<-1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
+
+            if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i];
+            if(CC[posC+(npx+npy+i)*4+1]<-1e20) CC[posC+(npx+npy+i)*4+1] = 0.0;
             if(CC[posC+(npx+npy+i)*4+2]<-1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
-            if(CC[posC+(npx+npy+i)*4]>1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
-            if(CC[posC+(npx+npy+i)*4+1]>1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
+            if(CC[posC+(npx+npy+i)*4]>1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i];
+            if(CC[posC+(npx+npy+i)*4+1]>1e20) CC[posC+(npx+npy+i)*4+1] = 0.0;
             if(CC[posC+(npx+npy+i)*4+2]>1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
-            
+
         }
         for (int j=0; j<npy; j++){
             y = ymin + 0.5*dy + j*dy;
             x = xmin ;
 //             yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
             yt = y;
-            
-            
+
+
 //             N0=N2=0;N1=1;
-            
+
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
             if(i_grid>npx_grd-1) i_grid=npx_grd-1;
             j_grid = int((y - ymin_grid - 0.5*dy_grid)/dy_grid);
@@ -285,38 +302,38 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             N0 = L0_lineal(yt,y0,y0+dy_grid);
             N1 = L1_lineal(yt,y0,y0+dy_grid);
             N2 = L2_lineal(yt,y0,y0+dy_grid);
-            
-            N0 = L0_2(yt,y0-dy_grid,y0,y0+dy_grid); 
+
+            N0 = L0_2(yt,y0-dy_grid,y0,y0+dy_grid);
             N1 = L1_2(yt,y0-dy_grid,y0,y0+dy_grid);
             N2 = L2_2(yt,y0-dy_grid,y0,y0+dy_grid);
-            
+
 //             yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
-//                 N0 = L0(yt); 
+//                 N0 = L0(yt);
 //             N1 = L1(yt);
 //             N2 = L2(yt);
-            
-            
+
+
             // Frontera izq
             pos = t*npx_grd*npy_grd + j_grid*npx_grd + i_grid;
             pos0 = pos-npx_grd*(j_grid>0);
             pos1 = pos+npx_grd*(j_grid<npy_grd-1);
-            
+
             CC[posC+(2*npx+npy+j)*4]   = N0*fh[pos0] + N1*fh[pos] + N2*fh[pos1];
             CC[posC+(2*npx+npy+j)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
             CC[posC+(2*npx+npy+j)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+(2*npx+npy+j)*4+3] = H[j*npx];
-            
+
 //             printf("%.15f,\n",fh[pos]);
-            
-            if(CC[posC+(2*npx+npy+j)*4]<-1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
-            if(CC[posC+(2*npx+npy+j)*4+1]<-1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
+
+            if(CC[posC+(2*npx+npy+j)*4]<-1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx];
+            if(CC[posC+(2*npx+npy+j)*4+1]<-1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0;
             if(CC[posC+(2*npx+npy+j)*4+2]<-1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
-            if(CC[posC+(2*npx+npy+j)*4]>1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
-            if(CC[posC+(2*npx+npy+j)*4+1]>1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
+            if(CC[posC+(2*npx+npy+j)*4]>1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx];
+            if(CC[posC+(2*npx+npy+j)*4+1]>1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0;
             if(CC[posC+(2*npx+npy+j)*4+2]>1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
-            
-           
-            
+
+
+
             // Frontera drch
             x = xmax ;
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
@@ -324,21 +341,21 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             pos = t*npx_grd*npy_grd + j_grid*npx_grd + i_grid;
             pos0 = pos-npx_grd*(j_grid>0);
             pos1 = pos+npx_grd*(j_grid<npy_grd-1);
-            
-            
+
+
             CC[posC+(npx+j)*4]   = N0*fh[pos0] + N1*fh[pos] + N2*fh[pos1];
             CC[posC+(npx+j)*4+1] = N0*fhu[pos0] + N1*fhu[pos] + N2*fhu[pos1];
             CC[posC+(npx+j)*4+2] = N0*fhv[pos0] + N1*fhv[pos] + N2*fhv[pos1];
             CC[posC+(npx+j)*4+3] = H[j*npx+npx-1];
-            
-            if(CC[posC+(npx+j)*4]<-1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
-            if(CC[posC+(npx+j)*4+1]<-1e20) CC[posC+(npx+j)*4+1] = 0.0; 
+
+            if(CC[posC+(npx+j)*4]<-1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1];
+            if(CC[posC+(npx+j)*4+1]<-1e20) CC[posC+(npx+j)*4+1] = 0.0;
             if(CC[posC+(npx+j)*4+2]<-1e20) CC[posC+(npx+j)*4+2] = 0.0;
-            if(CC[posC+(npx+j)*4]>1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
-            if(CC[posC+(npx+j)*4+1]>1e20) CC[posC+(npx+j)*4+1] = 0.0; 
+            if(CC[posC+(npx+j)*4]>1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1];
+            if(CC[posC+(npx+j)*4+1]>1e20) CC[posC+(npx+j)*4+1] = 0.0;
             if(CC[posC+(npx+j)*4+2]>1e20) CC[posC+(npx+j)*4+2] = 0.0;
         }
-        
+
     }
 
 
@@ -350,120 +367,115 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 #else
 
 void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, double xmin, double xmax, double ymin, double ymax, double xmin_grid, double ymin_grid, long unsigned int time, double dx_grid, double dy_grid, double *H, int id, double SLR_correction){
-    
-    
+
+
     double x,y;
     double dx,dy;
-//     double dx_grid, dy_grid;
     double xt, yt;
     int i_grid, j_grid;
     int idu;
     int var_id, dimId;
-// 	int id = ncid_CI;
     long unsigned int npx_grd, npy_grd;
-    
 
-    
+
+
     double *fh, *fhu, *fhv;
-    
 
-	
-    // We build the file XXXua.nc
-    file.erase(file.end()-5);
-    file.insert(file.end()-4,'u');
-	
-	int iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
 
+
+    // We build the file XXXu.nc
+    file.erase(file.end()-4);
+    file.insert(file.end()-3,'u');
+
+
+    int iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
     iret = nc_inq_dimid(idu, "lat", &dimId);
-        if (iret != NC_NOERR) {
+    if (iret != NC_NOERR) {
         iret = nc_inq_dimid(idu, "LAT", &dimId);
-		check_errGRD_inte(iret);
+        check_errGRD_inte(iret);
     }
     iret = nc_inq_dimlen(idu, dimId, &npy_grd);
     check_errGRD_inte(iret);
-    
+
     iret = nc_inq_dimid(idu, "lon", &dimId);
     if (iret != NC_NOERR) {
         iret = nc_inq_dimid(idu, "LON", &dimId);
-		check_errGRD_inte(iret);
+        check_errGRD_inte(iret);
     }
     iret = nc_inq_dimlen(idu, dimId, &npx_grd);
     check_errGRD_inte(iret);
-    
+
     iret = nc_inq_dimid(idu, "time", &dimId);
     if (iret != NC_NOERR) {
         iret = nc_inq_dimid(idu, "TIME", &dimId);
-		check_errGRD_inte(iret);
+        check_errGRD_inte(iret);
     }
     check_errGRD_inte(iret);
-    
+
     static size_t start_t[1] = {0};
-	static size_t count_t[1] = {time};
-    
+    static size_t count_t[1] = {time};
+
     iret = nc_inq_varid(idu, "time", &var_id);
     if (iret != NC_NOERR) {
         iret = nc_inq_varid(idu, "TIME", &var_id);
-		check_errGRD_inte(iret);
+        check_errGRD_inte(iret);
     }
-	iret = nc_get_vara_double(idu, var_id, start_t, count_t, tCC);
-	check_errGRD_inte(iret);
-    
-    
+    iret = nc_get_vara_double(idu, var_id, start_t, count_t, tCC);
+    check_errGRD_inte(iret);
+
+
     static size_t start[3] = {0, 0, 0};
-	static size_t count[3] = {time, npy_grd, npx_grd};
-    
+    static size_t count[3] = {time, npy_grd, npx_grd};
+
     fhu=new double[time*npx_grd*npy_grd]();
     fhv=new double[time*npx_grd*npy_grd]();
     fh=new double[time*npx_grd*npy_grd]();
     if (fh == NULL) {
-		cerr << "Error: No hay memoria CPU suficiente" << endl;
-		exit(-1);
-	}
-    
-    
+        cerr << "Error: Not enough CPU memory" << endl;
+        exit(-1);
+    }
+
+
     iret = nc_inq_varid(idu, "ua_lc", &var_id);
     if (iret != NC_NOERR) {
         iret = nc_inq_varid(idu, "UA", &var_id);
-		check_errGRD_inte(iret);
+        check_errGRD_inte(iret);
     }
-	iret = nc_get_vara_double(idu, var_id, start, count, fhu);
-	check_errGRD_inte(iret);
+    iret = nc_get_vara_double(idu, var_id, start, count, fhu);
+    check_errGRD_inte(iret);
     iret = nc_close(idu);
-	check_errGRD_inte(iret);
-    
+    check_errGRD_inte(iret);
+
     // We build the file XXXv.nc
-    file.erase(file.end()-5);
-    file.insert(file.end()-4,'v');
-	
-	iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
-	check_errGRD_inte(iret);
+    file.erase(file.end()-4);
+    file.insert(file.end()-3,'v');
+
+    iret = nc_open(file.c_str(), NC_NOWRITE, &idu);
+    check_errGRD_inte(iret);
     iret = nc_inq_varid(idu, "va_lc", &var_id);
     if (iret != NC_NOERR) {
         iret = nc_inq_varid(idu, "VA", &var_id);
-		check_errGRD_inte(iret);
+        check_errGRD_inte(iret);
     }
-	iret = nc_get_vara_double(idu, var_id, start, count, fhv);
-	check_errGRD_inte(iret);
+    iret = nc_get_vara_double(idu, var_id, start, count, fhv);
+    check_errGRD_inte(iret);
     iret = nc_close(idu);
-	check_errGRD_inte(iret);
+    check_errGRD_inte(iret);
 
-    
-	iret = nc_inq_varid(id, "ha_lc", &var_id);
+
+    iret = nc_inq_varid(id, "ha_lc", &var_id);
     if (iret != NC_NOERR) {
-	iret = nc_inq_varid(id, "HA", &var_id);
-		check_errGRD_inte(iret);
+        iret = nc_inq_varid(id, "HA", &var_id);
+        check_errGRD_inte(iret);
     }
-	iret = nc_get_vara_double(id, var_id, start, count, fh);
-	check_errGRD_inte(iret);
+    iret = nc_get_vara_double(id, var_id, start, count, fh);
+    check_errGRD_inte(iret);
 
 
     dx = (xmax-xmin)/npx;
     dy = (ymax-ymin)/npy;
-    
 
-    
-//     double dmax = xmax;
-    
+
     int pos, posL, posR, posLD, posRD, posLU, posRU, posU, posD;
     double N0, N1, N2, N3, N4, N5, N6, N7, N8;
     double x0, x1, x2, y0, y1, y2;
@@ -474,14 +486,14 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             x = xmin + 0.5*dx + i*dx;
             y = ymin ;
             xt = 1.0/(xmax-xmin)*(2*x-(xmax+xmin));
-            
-            
+
+
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
             if(i_grid>npx_grd-1) i_grid=npx_grd-1;
             j_grid = int((y - ymin_grid - 0.5*dy_grid)/dy_grid);
             if(j_grid>npy_grd-1) j_grid=npy_grd-1;
-            
-            // Frontera inf
+
+            // Boundary down
             pos = t*npx_grd*npy_grd + npx_grd*j_grid + i_grid;
             posL = pos-1*(i_grid>0);
             posR = pos+1*(i_grid<npx_grd-1);
@@ -491,15 +503,15 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             posRD = posD+1*(i_grid<npx_grd-1);
             posLU = posU-1*(i_grid>0);
             posRU = posU+1*(i_grid<npx_grd-1);
-            
-            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
+
+            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid;
             x0 = x1-dx_grid;
             x2 = x1+dx_grid;
-            
+
             y1 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid;
             y0 = y1-dy_grid;
             y2 = y1+dy_grid;
-            
+
             N0 = L0_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N1 = L1_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N2 = L2_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
@@ -509,43 +521,44 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             N6 = L0_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N7 = L1_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N8 = L2_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
-            
+
             CC[posC+i*4] = N0*fh[posLD] + N1*fh[posD] + N2*fh[posRD] + N3*fh[posL] + N4*fh[pos] + N5*fh[posR] + N6*fh[posLU] + N7*fh[posU] + N8*fh[posRU];
             CC[posC+i*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+i*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
-            
+
 
             CC[posC+i*4] *= UNITS;
             CC[posC+i*4+1] *= UNITS;
             CC[posC+i*4+2] *= UNITS;
             CC[posC+i*4] += SLR_correction;
 
+            // Lineal interpolation
             /*double m,b,x0;
-            x0 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
-            m = (fh[pos1]-fh[pos])/dx_grid;
-            b = fh[pos] - m*x0;
-            CC[posC+i*4] = m*x+b;
-                        
-            m = (fhu[pos1]-fhu[pos])/dx_grid;
-            b = fhu[pos] - m*x0;
-            CC[posC+i*4+1] = m*x+b;
-            
-            m = (fhv[pos1]-fhv[pos])/dx_grid;
-            b = fhv[pos] - m*x0;
-            CC[posC+i*4+2] = m*x+b;*/
-            
-            CC[posC+i*4+3] = H[i];
-            
+             *            x0 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid;
+             *            m = (fh[pos1]-fh[pos])/dx_grid;
+             *            b = fh[pos] - m*x0;
+             *            CC[posC+i*4] = m*x+b;
+             *
+             *            m = (fhu[pos1]-fhu[pos])/dx_grid;
+             *            b = fhu[pos] - m*x0;
+             *            CC[posC+i*4+1] = m*x+b;
+             *
+             *            m = (fhv[pos1]-fhv[pos])/dx_grid;
+             *            b = fhv[pos] - m*x0;
+             *            CC[posC+i*4+2] = m*x+b;*/
 
-            if(CC[posC+i*4]<-1e20) CC[posC+i*4] = H[i]; 
-            if(CC[posC+i*4+1]<-1e20) CC[posC+i*4+1] = 0.0; 
+            CC[posC+i*4+3] = H[i];
+
+
+            if(CC[posC+i*4]<-1e20) CC[posC+i*4] = H[i];
+            if(CC[posC+i*4+1]<-1e20) CC[posC+i*4+1] = 0.0;
             if(CC[posC+i*4+2]<-1e20) CC[posC+i*4+2] = 0.0;
-            if(CC[posC+i*4]>1e20) CC[posC+i*4] = H[i]; 
-            if(CC[posC+i*4+1]>1e20) CC[posC+i*4+1] = 0.0; 
+            if(CC[posC+i*4]>1e20) CC[posC+i*4] = H[i];
+            if(CC[posC+i*4+1]>1e20) CC[posC+i*4+1] = 0.0;
             if(CC[posC+i*4+2]>1e20) CC[posC+i*4+2] = 0.0;
-            
-            
-            // Frontera sup
+
+
+            // Boundary up
             y = ymax ;
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
             if(i_grid>npx_grd-1) i_grid=npx_grd-1;
@@ -560,15 +573,15 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             posRD = posD+1*(i_grid<npx_grd-1);
             posLU = posU-1*(i_grid>0);
             posRU = posU+1*(i_grid<npx_grd-1);
-            
-            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
+
+            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid;
             x0 = x1-dx_grid;
             x2 = x1+dx_grid;
-            
+
             y1 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid;
             y0 = y1-dy_grid;
             y2 = y1+dy_grid;
-            
+
             N0 = L0_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N1 = L1_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N2 = L2_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
@@ -578,39 +591,39 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             N6 = L0_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N7 = L1_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N8 = L2_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
-            
+
             CC[posC+(npx+npy+i)*4] = N0*fh[posLD] + N1*fh[posD] + N2*fh[posRD] + N3*fh[posL] + N4*fh[pos] + N5*fh[posR] + N6*fh[posLU] + N7*fh[posU] + N8*fh[posRU];
             CC[posC+(npx+npy+i)*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+(npx+npy+i)*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
             CC[posC+(npx+npy+i)*4+3] = H[(npy-1)*npx+i];
-            
+
             CC[posC+(npx+npy+i)*4] *= UNITS;
             CC[posC+(npx+npy+i)*4+1] *= UNITS ;
             CC[posC+(npx+npy+i)*4+2] *= UNITS;
 
             CC[posC+(npx+npy+i)*4] += SLR_correction;
 
-            if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
-            if(CC[posC+(npx+npy+i)*4+1]<-1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
+            if(CC[posC+(npx+npy+i)*4]<-1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i];
+            if(CC[posC+(npx+npy+i)*4+1]<-1e20) CC[posC+(npx+npy+i)*4+1] = 0.0;
             if(CC[posC+(npx+npy+i)*4+2]<-1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
-            if(CC[posC+(npx+npy+i)*4]>1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i]; 
-            if(CC[posC+(npx+npy+i)*4+1]>1e20) CC[posC+(npx+npy+i)*4+1] = 0.0; 
+            if(CC[posC+(npx+npy+i)*4]>1e20) CC[posC+(npx+npy+i)*4] = H[(npy-1)*npx+i];
+            if(CC[posC+(npx+npy+i)*4+1]>1e20) CC[posC+(npx+npy+i)*4+1] = 0.0;
             if(CC[posC+(npx+npy+i)*4+2]>1e20) CC[posC+(npx+npy+i)*4+2] = 0.0;
-            
+
         }
         for (int j=0; j<npy; j++){
             y = ymin + 0.5*dy + j*dy;
             x = xmin ;
             yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
-            
+
 
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
             if(i_grid>npx_grd-1) i_grid=npx_grd-1;
             j_grid = int((y - ymin_grid - 0.5*dy_grid)/dy_grid);
             if(j_grid>npy_grd-1) j_grid=npy_grd-1;
 
-            
-            // Frontera izq
+
+            // Boundary left
             pos = t*npx_grd*npy_grd + j_grid*npx_grd + i_grid;
             posL = pos-1*(i_grid>0);
             posR = pos+1*(i_grid<npx_grd-1);
@@ -620,16 +633,16 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             posRD = posD+1*(i_grid<npx_grd-1);
             posLU = posU-1*(i_grid>0);
             posRU = posU+1*(i_grid<npx_grd-1);
-            
-            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
+
+            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid;
             x0 = x1-dx_grid;
             x2 = x1+dx_grid;
-            
+
             y1 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid;
             y0 = y1-dy_grid;
             y2 = y1+dy_grid;
-            
-            
+
+
             N0 = L0_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N1 = L1_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N2 = L2_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
@@ -639,7 +652,7 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             N6 = L0_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N7 = L1_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N8 = L2_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
-            
+
             CC[posC+(2*npx+npy+j)*4] = N0*fh[posLD] + N1*fh[posD] + N2*fh[posRD] + N3*fh[posL] + N4*fh[pos] + N5*fh[posR] + N6*fh[posLU] + N7*fh[posU] + N8*fh[posRU];
             CC[posC+(2*npx+npy+j)*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+(2*npx+npy+j)*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
@@ -647,36 +660,36 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(2*npx+npy+j)*4] *= UNITS;
             CC[posC+(2*npx+npy+j)*4+1] *= UNITS;
             CC[posC+(2*npx+npy+j)*4+2] *= UNITS;
-            
+
             CC[posC+(2*npx+npy+j)*4] += SLR_correction;
-            
+
             /*
-            double m,b,y0;
-            y0 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid; 
-            m = (fh[pos1]-fh[pos])/dy_grid;
-            b = fh[pos] - m*y0;
-            CC[posC+(2*npx+npy+j)*4] = m*y+b;
-            
-            m = (fhu[pos1]-fhu[pos])/dy_grid;
-            b = fhu[pos] - m*y0;
-            CC[posC+(2*npx+npy+j)*4+1] = m*y+b;
-            
-            m = (fhv[pos1]-fhv[pos])/dy_grid;
-            b = fhv[pos] - m*y0;
-            CC[posC+(2*npx+npy+j)*4+2] = m*y+b;*/
+             *            double m,b,y0;
+             *            y0 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid;
+             *            m = (fh[pos1]-fh[pos])/dy_grid;
+             *            b = fh[pos] - m*y0;
+             *            CC[posC+(2*npx+npy+j)*4] = m*y+b;
+             *
+             *            m = (fhu[pos1]-fhu[pos])/dy_grid;
+             *            b = fhu[pos] - m*y0;
+             *            CC[posC+(2*npx+npy+j)*4+1] = m*y+b;
+             *
+             *            m = (fhv[pos1]-fhv[pos])/dy_grid;
+             *            b = fhv[pos] - m*y0;
+             *            CC[posC+(2*npx+npy+j)*4+2] = m*y+b;*/
             CC[posC+(2*npx+npy+j)*4+3] = H[j*npx];
-            
-            
-            if(CC[posC+(2*npx+npy+j)*4]<-1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
-            if(CC[posC+(2*npx+npy+j)*4+1]<-1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
+
+
+            if(CC[posC+(2*npx+npy+j)*4]<-1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx];
+            if(CC[posC+(2*npx+npy+j)*4+1]<-1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0;
             if(CC[posC+(2*npx+npy+j)*4+2]<-1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
-            if(CC[posC+(2*npx+npy+j)*4]>1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx]; 
-            if(CC[posC+(2*npx+npy+j)*4+1]>1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0; 
+            if(CC[posC+(2*npx+npy+j)*4]>1e20) CC[posC+(2*npx+npy+j)*4] = H[j*npx];
+            if(CC[posC+(2*npx+npy+j)*4+1]>1e20) CC[posC+(2*npx+npy+j)*4+1] = 0.0;
             if(CC[posC+(2*npx+npy+j)*4+2]>1e20) CC[posC+(2*npx+npy+j)*4+2] = 0.0;
-            
-           
-            
-            // Frontera drch
+
+
+
+            // Boundary right
             x = xmax ;
             i_grid = int((x - xmin_grid - 0.5*dx_grid)/dx_grid);
             if(i_grid>npx_grd-1) i_grid=npx_grd-1;
@@ -689,15 +702,15 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             posRD = posD+1*(i_grid<npx_grd-1);
             posLU = posU-1*(i_grid>0);
             posRU = posU+1*(i_grid<npx_grd-1);
-            
-            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid; 
+
+            x1 = xmin_grid + 0.5*dx_grid + i_grid*dx_grid;
             x0 = x1-dx_grid;
             x2 = x1+dx_grid;
-            
+
             y1 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid;
             y0 = y1-dy_grid;
             y2 = y1+dy_grid;
-            
+
             N0 = L0_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N1 = L1_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
             N2 = L2_2(x,x0,x1,x2)*L0_2(y,y0,y1,y2);
@@ -707,7 +720,7 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             N6 = L0_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N7 = L1_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
             N8 = L2_2(x,x0,x1,x2)*L2_2(y,y0,y1,y2);
-            
+
             CC[posC+(npx+j)*4] = N0*fh[posLD] + N1*fh[posD] + N2*fh[posRD] + N3*fh[posL] + N4*fh[pos] + N5*fh[posR] + N6*fh[posLU] + N7*fh[posU] + N8*fh[posRU];
             CC[posC+(npx+j)*4+1] = N0*fhu[posLD] + N1*fhu[posD] + N2*fhu[posRD] + N3*fhu[posL] + N4*fhu[pos] + N5*fhu[posR] + N6*fhu[posLU] + N7*fhu[posU] + N8*fhu[posRU];
             CC[posC+(npx+j)*4+2] = N0*fhv[posLD] + N1*fhv[posD] + N2*fhv[posRD] + N3*fhv[posL] + N4*fhv[pos] + N5*fhv[posR] + N6*fhv[posLU] + N7*fhv[posU] + N8*fhv[posRU];
@@ -715,35 +728,35 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
             CC[posC+(npx+j)*4] *= UNITS;
             CC[posC+(npx+j)*4+1] *= UNITS;
             CC[posC+(npx+j)*4+2] *= UNITS;
-            
+
             CC[posC+(npx+j)*4] += SLR_correction;
-            
-            
-            
-            
-//             y0 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid; 
-//             m = (fh[pos1]-fh[pos])/dy_grid;
-//             b = fh[pos] - m*y0;
-//             CC[posC+(npx+j)*4] = m*y+b;
-//             
-//             m = (fhu[pos1]-fhu[pos])/dy_grid;
-//             b = fhu[pos] - m*y0;
-//             CC[posC+(npx+j)*4+1] = m*y+b;
-//             
-//             m = (fhv[pos1]-fhv[pos])/dy_grid;
-//             b = fhv[pos] - m*y0;
-//             CC[posC+(npx+j)*4+2] = m*y+b;
+
+
+
+
+            //             y0 = ymin_grid + 0.5*dy_grid + j_grid*dy_grid;
+            //             m = (fh[pos1]-fh[pos])/dy_grid;
+            //             b = fh[pos] - m*y0;
+            //             CC[posC+(npx+j)*4] = m*y+b;
+            //
+            //             m = (fhu[pos1]-fhu[pos])/dy_grid;
+            //             b = fhu[pos] - m*y0;
+            //             CC[posC+(npx+j)*4+1] = m*y+b;
+            //
+            //             m = (fhv[pos1]-fhv[pos])/dy_grid;
+            //             b = fhv[pos] - m*y0;
+            //             CC[posC+(npx+j)*4+2] = m*y+b;
 
             CC[posC+(npx+j)*4+3] = H[j*npx+npx-1];
-            
-            if(CC[posC+(npx+j)*4]<-1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
-            if(CC[posC+(npx+j)*4+1]<-1e20) CC[posC+(npx+j)*4+1] = 0.0; 
+
+            if(CC[posC+(npx+j)*4]<-1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1];
+            if(CC[posC+(npx+j)*4+1]<-1e20) CC[posC+(npx+j)*4+1] = 0.0;
             if(CC[posC+(npx+j)*4+2]<-1e20) CC[posC+(npx+j)*4+2] = 0.0;
-            if(CC[posC+(npx+j)*4]>1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1]; 
-            if(CC[posC+(npx+j)*4+1]>1e20) CC[posC+(npx+j)*4+1] = 0.0; 
+            if(CC[posC+(npx+j)*4]>1e20) CC[posC+(npx+j)*4] = H[j*npx+npx-1];
+            if(CC[posC+(npx+j)*4+1]>1e20) CC[posC+(npx+j)*4+1] = 0.0;
             if(CC[posC+(npx+j)*4+2]>1e20) CC[posC+(npx+j)*4+2] = 0.0;
         }
-        
+
     }
 
 
@@ -756,33 +769,31 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 
 
 void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, double xmin_fun, double ymin_fun, int npx_fun, int npy_fun, double dx_fun, double dy_fun, int npx, int npy, double *fun, double *sol){
-    // xmin, xmax, ... de sol
-        // Interpolates fun into a mesh npx x npy,
-    
+    // Interpolates fun into a mesh npx x npy,
+
     double x,y;
     double dx,dy;
-//     double dx_fun, dy_fun;
     double xt, yt;
     int i_grid, j_grid;
     double N1,N2,N3,N4,N5,N6,N7,N8,N9;
-    
+
     dx = (xmax-xmin)/(npx);
     dy = (ymax-ymin)/(npy);
 
 
-    
+
     for (int j=0; j<npy; j++){
         printProgress(float(j+1)/npy);
         for (int i=0; i<npx; i++){
             int pos, posp;
             int posL, posR, posU, posD, posLU, posLD, posRU, posRD;
-            
+
             x = xmin + 0.5*dx + i*dx;
             y = ymin + 0.5*dy + j*dy;
-        
+
             xt = 1.0/(xmax-xmin)*(2*x-(xmax+xmin));
             yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
-        
+
 
             i_grid = int((x - xmin_fun - 0.5*dx_fun)/dx_fun);
             j_grid = int((y - ymin_fun - 0.5*dy_fun)/dy_fun);
@@ -790,10 +801,10 @@ void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, do
             if(j_grid>npy_fun-1) j_grid=npy_fun-1;
             if(i_grid<0) i_grid=0;
             if(j_grid<0) j_grid=0;
-            
+
             pos = j_grid*npx_fun + i_grid;
             posp = j*npx +i;
-        
+
             posL = pos-1;
             posR = pos+1;
             posU = pos+npx_fun;
@@ -802,7 +813,7 @@ void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, do
             posLD = posD-1;
             posRU = posU+1;
             posRD = posD+1;
-        
+
             if(i_grid==0){
                 posL=pos;
                 posLU=pos;
@@ -813,20 +824,20 @@ void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, do
                 posRD=pos;
                 posRU=pos;
             }
-                
+
             if(j_grid==0){
                 posD=pos;
                 posLD=pos;
                 posRD=pos;
             }
-                
+
             if(j_grid==npy_fun-1){
                 posU=pos;
                 posLU=pos;
                 posRU=pos;
             }
-                
-        
+
+
             N1 = L0(xt)*L0(yt);
             N2 = L1(xt)*L0(yt);
             N3 = L2(xt)*L0(yt);
@@ -835,12 +846,12 @@ void interpolate_spherics(double xmin, double xmax, double ymin, double ymax, do
             N6 = L2(xt)*L1(yt);
             N7 = L0(xt)*L2(yt);
             N8 = L1(xt)*L2(yt);
-            N9 = L2(xt)*L2(yt);        
+            N9 = L2(xt)*L2(yt);
 
-        
-            sol[posp] = fun[posLD]*N1 + fun[posD]*N2 + fun[posRD]*N3 + fun[posL]*N4 + fun[pos]*N5 + fun[posR]*N6 + fun[posLU]*N7 + fun[posU]*N8 + fun[posRU]*N9; 
-            
-        }    
+
+            sol[posp] = fun[posLD]*N1 + fun[posD]*N2 + fun[posRD]*N3 + fun[posL]*N4 + fun[pos]*N5 + fun[posR]*N6 + fun[posLU]*N7 + fun[posU]*N8 + fun[posRU]*N9;
+
+        }
     }
 
 }
@@ -858,42 +869,42 @@ void fix_eta(double *p, double *H, int npx, int npy, double SLR_correction){
 
 
 void spheric2cartesian(double xmin, double xmax, double ymin, double ymax, double *dx, double dy, int npx, int npy, double *fun, double *sol){
-    
+
     double dxG, dyG;
     double x,y;
     double xt, yt;
     int i_grid, j_grid;
     double N1,N2,N3,N4,N5,N6,N7,N8,N9;
-    
+
     dxG = (xmax-xmin)/npx;
     dyG = (ymax-ymin)/npy;
-    
 
-    
+
+
     for (int i=0; i<npx; i++){
         printProgress(float(i+1)/npx);
         for (int j=0; j<npy; j++){
             int pos, posp;
             int posL, posR, posU, posD, posLU, posLD, posRU, posRD;
-            
+
             x = xmin + 0.5*dxG + i*dxG;
             y = ymin + 0.5*dyG + j*dyG;
-        
+
             xt = 1.0/(xmax-xmin)*(2*x-(xmax+xmin));
             yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
-        
+
             j_grid = int((y - ymin - 0.5*dy)/dy);
             if(j_grid>npy-1) j_grid=npy-1;
             if(j_grid<0) j_grid=0;
-            
+
             double xminE = 0 + (xmax - dx[j_grid]*npx)/2;
             i_grid = int((x - xminE - 0.5*dx[j_grid])/dx[j_grid]);
             if(i_grid>npx-1) i_grid=npx-1;
             if(i_grid<0) i_grid=0;
-            
+
             pos = j_grid*npx + i_grid;
             posp = j*npx +i;
-            
+
             posL = pos-1;
             posR = pos+1;
             posU = pos+npx;
@@ -902,7 +913,7 @@ void spheric2cartesian(double xmin, double xmax, double ymin, double ymax, doubl
             posLD = posD-1;
             posRU = posU+1;
             posRD = posD+1;
-        
+
             if(i_grid==0){
                 posL=pos;
                 posLU=pos;
@@ -913,20 +924,20 @@ void spheric2cartesian(double xmin, double xmax, double ymin, double ymax, doubl
                 posRD=pos;
                 posRU=pos;
             }
-                
+
             if(j_grid==0){
                 posD=pos;
                 posLD=pos;
                 posRD=pos;
             }
-                
+
             if(j_grid==npy-1){
                 posU=pos;
                 posLU=pos;
                 posRU=pos;
             }
-            
-                    
+
+
             N1 = L0(xt)*L0(yt);
             N2 = L1(xt)*L0(yt);
             N3 = L2(xt)*L0(yt);
@@ -935,154 +946,150 @@ void spheric2cartesian(double xmin, double xmax, double ymin, double ymax, doubl
             N6 = L2(xt)*L1(yt);
             N7 = L0(xt)*L2(yt);
             N8 = L1(xt)*L2(yt);
-            N9 = L2(xt)*L2(yt);        
-                
-            
-            sol[posp] = fun[posLD]*N1 + fun[posD]*N2 + fun[posRD]*N3 + fun[posL]*N4 + fun[pos]*N5 + fun[posR]*N6 + fun[posLU]*N7 + fun[posU]*N8 + fun[posRU]*N9; 
-            
-            
+            N9 = L2(xt)*L2(yt);
+
+
+            sol[posp] = fun[posLD]*N1 + fun[posD]*N2 + fun[posRD]*N3 + fun[posL]*N4 + fun[pos]*N5 + fun[posR]*N6 + fun[posLU]*N7 + fun[posU]*N8 + fun[posRU]*N9;
+
+
         }
     }
-    
+
 }
 
 
 
 void spheric2cartesian_CC(double xmin, double xmax, double ymin, double ymax, double *dxE, double dyE, int npx, int npy, int time_grid, double *CC){
-    
-    
+
+
     double *aux;
     double x,y;
     double dx, dy;
     double N0, N1, N2;
     int pos, pos0, pos1, posA;
     double xt, yt;
-    
+
     aux = new double[(2*npx+2*npy)*4]();
-    
+
     dx = (xmax-xmin)/npx;
     dy = (ymax-ymin)/npy;
 
     for (int t=0; t<time_grid; t++){
-        
+
         // Frontera sup e inf
         for(int i=0;i<npx;i++){
             int i_grid;
-            // Frontera inf
+            // Boundary down
             x = xmin + 0.5*dx + i*dx;
             y = ymin;
-            
+
             double xminE = 0 + (xmax-dxE[0]*npx)/2;
             i_grid = int((x-xminE-0.5*dxE[0])/dxE[0]);
             if(i_grid>npx-1) i_grid=npx-1;
             if(i_grid<0) i_grid=0;
-                        
+
             pos = t*(2*npx+2*npy)*4 + i_grid*4;
             pos0 = pos-4*(i_grid>0);
             pos1 = pos+4*(i_grid<npx-1);
-                
+
             posA = i*4;
-                        
+
             xt = 1.0/(xmax-xmin)*(2*x-(xmax+xmin));
             N0 = L0(xt);
             N1 = L1(xt);
             N2 = L2(xt);
-            
+
             aux[posA]   = N0*CC[pos0] + N1*CC[pos] + N2*CC[pos1];
             aux[posA+1] = N0*CC[pos0+1] + N1*CC[pos+1] + N2*CC[pos1+1];
             aux[posA+2] = N0*CC[pos0+2] + N1*CC[pos+2] + N2*CC[pos1+2];
             aux[posA+3] = N0*CC[pos0+3] + N1*CC[pos+3] + N2*CC[pos1+3];
-            
-            
-            // Frontera sup
-//             x = xmin + 0.5*dx + i*dx;
+
+
+            // Boundary up
             y = ymax;
-            
+
             xminE = 0 + (xmax-dxE[npy-1]*npx)/2;
             i_grid = int((x-xminE-0.5*dxE[npy-1])/dxE[npy-1]);
             if(i_grid>npx-1) i_grid=npx-1;
             if(i_grid<0) i_grid=0;
-            
-            
+
+
             pos = t*(2*npx+2*npy)*4 + (npx+npy)*4 + i_grid*4;
             pos0 = pos-4*(i_grid>0);
             pos1 = pos+4*(i_grid<npx-1);
-                
+
             posA = (npx+npy)*4 + i*4;
-                        
+
             N0 = L0(xt);
             N1 = L1(xt);
             N2 = L2(xt);
-            
+
             aux[posA]   = N0*CC[pos0] + N1*CC[pos] + N2*CC[pos1];
             aux[posA+1] = N0*CC[pos0+1] + N1*CC[pos+1] + N2*CC[pos1+1];
             aux[posA+2] = N0*CC[pos0+2] + N1*CC[pos+2] + N2*CC[pos1+2];
             aux[posA+3] = N0*CC[pos0+3] + N1*CC[pos+3] + N2*CC[pos1+3];
         }
-     
-        // Frontera izq y drch
+
+        // Boundary left and right
         for(int j=0;j<npy;j++){
             int j_grid;
             // Frontera izq
             x = xmin;
             y = ymin + 0.5*dy + j*dy;
-            
+
             double yminE = 0 + (ymax-dyE*npy)/2;
             j_grid = int((y-yminE-0.5*dyE)/dyE);
             if(j_grid>npy-1) j_grid=npy-1;
             if(j_grid<0) j_grid=0;
-                        
+
             pos = t*(2*npx+2*npy)*4 + (npx*2 + npy)*4 + j_grid*4;
             pos0 = pos-4*(j_grid>0);
             pos1 = pos+4*(j_grid<npy-1);
-                
+
             posA = (npx*2+npy)*4 + j*4;
-                        
+
             yt = 1.0/(ymax-ymin)*(2*y-(ymax+ymin));
             N0 = L0(yt);
             N1 = L1(yt);
             N2 = L2(yt);
-            
+
             aux[posA]   = N0*CC[pos0] + N1*CC[pos] + N2*CC[pos1];
             aux[posA+1] = N0*CC[pos0+1] + N1*CC[pos+1] + N2*CC[pos1+1];
             aux[posA+2] = N0*CC[pos0+2] + N1*CC[pos+2] + N2*CC[pos1+2];
             aux[posA+3] = N0*CC[pos0+3] + N1*CC[pos+3] + N2*CC[pos1+3];
-            
-            
-            // Frontera drch
+
+
+            // Boundary right
             x = xmax;
-//             y = ymin + 0.5*dy + j*dy;
-            
+
             yminE = 0 + (ymax-dyE*npy)/2;
             j_grid = int((y-yminE-0.5*dyE)/dyE);
             if(j_grid>npy-1) j_grid=npy-1;
             if(j_grid<0) j_grid=0;
-            
-            
+
+
             pos = t*(2*npx+2*npy)*4 + (npx)*4 + j_grid*4;
             pos0 = pos-4*(j_grid>0);
             pos1 = pos+4*(j_grid<npx-1);
-                
+
             posA = (npx)*4 + j*4;
-                        
+
             N0 = L0(yt);
             N1 = L1(yt);
             N2 = L2(yt);
-            
+
             aux[posA]   = N0*CC[pos0] + N1*CC[pos] + N2*CC[pos1];
             aux[posA+1] = N0*CC[pos0+1] + N1*CC[pos+1] + N2*CC[pos1+1];
             aux[posA+2] = N0*CC[pos0+2] + N1*CC[pos+2] + N2*CC[pos1+2];
             aux[posA+3] = N0*CC[pos0+3] + N1*CC[pos+3] + N2*CC[pos1+3];
         }
-        
-//         if(AUX==1){
-            for (int k=0;k<(npx*2+npy*2)*4;k++){
-                CC[t*(npx*2+npy*2)*4+k] = aux[k];
-            }
-                
-//         }
+
+        for (int k=0;k<(npx*2+npy*2)*4;k++){
+            CC[t*(npx*2+npy*2)*4+k] = aux[k];
+        }
+
     }
-    
+
     delete [] aux;
 }
 

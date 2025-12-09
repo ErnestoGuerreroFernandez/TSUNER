@@ -1,3 +1,20 @@
+// TSUNER Copyright (C) 2025 Ernesto Guerrero Fernandez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
+
 #ifndef _REDUCCION_KERNEL_MIN_H_
 #define _REDUCCION_KERNEL_MIN_H_
 
@@ -138,7 +155,7 @@ void getNumBlocksAndThreadsMin(int n, int maxBlocks, int maxThreads, int &blocks
 }
 
 template <class T>
-T obtenerMinimoReduccion(T *d_data, int size)
+T MinReduction(T *d_data, int size)
 {
 	int maxBlocks = 64, maxThreads = 128;
 	int numBlocks, numThreads;
@@ -147,12 +164,11 @@ T obtenerMinimoReduccion(T *d_data, int size)
 	T minimo;
 
 	if (size > 4096) {
-		// Ejecutamos el kernel
+		// Run the kernel
 		getNumBlocksAndThreadsMin(size, maxBlocks, maxThreads, numBlocks, numThreads);
 		reduce_min<T>(numBlocks, numThreads, d_data, d_data, size);
 
-		// Obtenemos el mínimo de los resultados parciales de los bloques en GPU
-		// hasta que el número de elementos sea menor o igual que 4096
+		// We get the local mins in each GPU block until the number of elemts is equal or less than 4096
 		int s = numBlocks;
 		while (s > 4096) {
 			getNumBlocksAndThreadsMin(s, maxBlocks, maxThreads, numBlocks, numThreads);
@@ -160,8 +176,7 @@ T obtenerMinimoReduccion(T *d_data, int size)
 			s = s / (numThreads*2);
 		}
 
-		// Copiamos los elementos que quedan de GPU a CPU y terminamos de
-		// procesarlos en CPU
+		// We copy the remaining elements in CPU and finish there
 		cudaMemcpy(h_data, d_data, numBlocks*sizeof(T), cudaMemcpyDeviceToHost);
 		minimo = (T) 1e30;
 		for (i=0; i<numBlocks; i++) {
@@ -170,7 +185,7 @@ T obtenerMinimoReduccion(T *d_data, int size)
 		}
 	}
 	else {
-		// Copiamos los elementos de GPU a CPU y los procesamos en CPU
+		// We do it in CPU
 		cudaMemcpy(h_data, d_data, size*sizeof(T), cudaMemcpyDeviceToHost);
 		minimo = (T) 1e30;
 		for (i=0; i<size; i++) {

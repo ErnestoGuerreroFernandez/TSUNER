@@ -1,9 +1,26 @@
+// TSUNER Copyright (C) 2025 Ernesto Guerrero Fernandez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
+
 #ifndef _ARISTA_KERNEL_H_
 #define _ARISTA_KERNEL_H_
 
 #include <stdio.h>
-#include "Matriz.cu"
-#include "Constantes.hxx"
+#include "SedFlux.cu"
+#include "Sim_parameters.hxx"
 
 
 
@@ -11,7 +28,7 @@
 
 
 
-__device__ void procesarArista(double hhl, double zb0, double2 qql,  double hhr, double zb1,double2 qqr,int normal_x, int normal_y, double dl, double dt, double* d_Ah, double2* d_Ahu, double *d_Azb, int pos_vol0, int pos_vol1, double epsilon_h, int frontera)
+__device__ void Riemann_solver(double hhl, double zb0, double2 qql,  double hhr, double zb1,double2 qqr,int normal_x, int normal_y, double dl, double dt, double* d_Ah, double2* d_Ahu, double *d_Azb, int pos_vol0, int pos_vol1, double epsilon_h, int boundary)
 {
     double2 q0,q1;
     double2 ql, qr;
@@ -28,8 +45,8 @@ __device__ void procesarArista(double hhl, double zb0, double2 qql,  double hhr,
     qr.x = qqr.x*normal_x+qqr.y*normal_y;
     qr.y = qqr.y*normal_x-qqr.x*normal_y;
     
-    calculo_u(hhl,ql,epsilon_h,u0);
-    calculo_u(hhr,qr,epsilon_h,u1);
+    u_calculator(hhl,ql,epsilon_h,u0);
+    u_calculator(hhr,qr,epsilon_h,u1);
     
     // Reconstruccion hidrostatica
     double zmH = min(zb0,zb1);
@@ -47,24 +64,24 @@ __device__ void procesarArista(double hhl, double zb0, double2 qql,  double hhr,
     double F0[4], F1[4];
     F0[0] = F0[1] = F0[2] = F0[3] = 0.0;
     F1[0] = F1[1] = F1[2] = F1[3] = 0.0;
-    flujoC(h0,u0,F0,1, zb1-zb0, dl);  // Apunte: Puesto que el sistema de referencia es con la H medida por encima de la batimetria, el sistema que resuelves es dt(H) - dx(qb) (ver articulo de Castro-Fernandez-Ferreiro). Por tanto, se pone un -1 en el flujo del sedimento.
-    flujoC(h1,u1,F1,1, zb1-zb0, dl);
+    Cflux(h0,u0,F0,1, zb1-zb0, dl);  // Note: Since the reference used is with H under the reference, we are actually solving the system dt(H) - dx(qb) (see article Castro-Fernandez-Ferreiro). So, we put a -1 in the sediment flux
+    Cflux(h1,u1,F1,1, zb1-zb0, dl);
 
-    double hm, zm; // Medias de Roe
+    double hm, zm; // Roe average
     double2 um;
     roe_average(h0,u0,zb0,h1,u1,zb1,hm,um,zm);
     
-    double autovalores[3], SL, SR;
+    double eigenvalues[3], SL, SR;
     
-    calc_autoval_aprox0(h0,u0,autovalores);
-    SL = autovalores[0];
+    calc_eigen_aprox0(h0,u0,eigenvalues);
+    SL = eigenvalues[0];
     
-    calc_autoval_aprox0(h1,u1,autovalores);
-    SR = autovalores[2];
+    calc_eigen_aprox0(h1,u1,eigenvalues);
+    SR = eigenvalues[2];
     
-    calc_autoval_aprox0(hm,um,autovalores);
-    SL=min(SL,autovalores[0]);
-    SR=max(SR,autovalores[2]);
+    calc_eigen_aprox0(hm,um,eigenvalues);
+    SL=min(SL,eigenvalues[0]);
+    SR=max(SR,eigenvalues[2]);
     
     double a0, a1;
     if (SR-SL>EPSILON) {
@@ -156,24 +173,24 @@ __device__ void procesarArista(double hhl, double zb0, double2 qql,  double hhr,
 }
 
 
-__global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_dVhu, double* d_hx, double2* d_hux,double* d_zbx, int npx, int npy, double delta_T, double* d_Ah, double2* d_Ahu, double *d_Azb, double dx, double tiempo_act,int tipo, double epsilon_h, double vmax, double t)
+__global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_dVhu, double* d_hx, double2* d_hux,double* d_zbx, int npx, int npy, double delta_T, double* d_Ah, double2* d_Ahu, double *d_Azb, double dx, double current_time,int type, double epsilon_h, double vmax, double t)
 {
     int i, j;
     double2 ql,qr;
     double hl,hr;
     double zbl,zbr;
     int pos0,pos1;
-    int frontera=0;
+    int boundary=0;
     pos1=-1;
     
 
-    if(tipo==1){
-        i = 2*(blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x);
-        j = blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y;
+    if(type==1){
+        i = 2*(blockIdx.x*NUM_THREADS_HORIZONTAL_EDGES + threadIdx.x);
+        j = blockIdx.y*NUM_THREADS_VERTICAL_EDGES + threadIdx.y;
     }
     else{
-        i = 2*(blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x) + 1;
-        j = blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y;
+        i = 2*(blockIdx.x*NUM_THREADS_HORIZONTAL_EDGES + threadIdx.x) + 1;
+        j = blockIdx.y*NUM_THREADS_VERTICAL_EDGES + threadIdx.y;
     }
 
     
@@ -183,18 +200,17 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
 
             #else
 
-            frontera=4;
-            // Frontera izquierda
+            boundary=4;
+            // Left boundary
             // normal_x = -1.0
-            // El volumen 0 de la arista esta situado a la derecha de la arista
+            // Volume 0 is the right state
             pos0=npx*j + i;
-//             evalua_rh(d_dVh[pos0],d_hx[pos0],-0.5,hl);
-            evalua_rzb(d_dVH[pos0],d_zbx[pos0],-0.5,zbl);
-            evalua_rq(d_dVhu[pos0],d_hux[pos0],-0.5,ql);
+            rzb_eval(d_dVH[pos0],d_zbx[pos0],-0.5,zbl);
+            rq_eval(d_dVhu[pos0],d_hux[pos0],-0.5,ql);
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h);
+            state_filter(hl, ql , epsilon_h);
             
             hr=hl;
             zbr=zbl;
@@ -209,23 +225,22 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
             //             
             //             qr.y = 0.0;
             
-            procesarArista(hl, zbl, ql, hr, zbr, qr,-1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
-            #endif// Del WBC==2
+            Riemann_solver(hl, zbl, ql, hr, zbr, qr,-1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,boundary);
+            #endif// Of WBC==2
         }
         else {
             // normal_x = 1.0
-            // El volumen 0 de la arista esta situado a la izquierda de la arista
+            // Volumen 0 is the left state
             pos0 = npx*j + i-1;
-//             evalua_rh(d_dVh[pos0],d_hx[pos0],0.5,hl);
-            evalua_rzb(d_dVH[pos0],d_zbx[pos0],0.5,zbl);
-            evalua_rq(d_dVhu[pos0],d_hux[pos0],0.5,ql);
+            rzb_eval(d_dVH[pos0],d_zbx[pos0],0.5,zbl);
+            rq_eval(d_dVhu[pos0],d_hux[pos0],0.5,ql);
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h);
+            state_filter(hl, ql , epsilon_h);
             
             if (i == npx) {
-                frontera=2;
+                boundary=2;
                 hr=hl;
                 zbr=zbl;
                 #if WBC==1
@@ -237,37 +252,34 @@ __global__ void procesarAristasVerGPU(double* d_dVH, double* d_dVh, double2* d_d
                 
                 #if WBC==2
                 pos1 = npx*j + 0;
-//                 evalua_rh(d_dVh[pos1],d_hx[pos1],-0.5,hr);
-                evalua_rzb(d_dVH[pos1],d_zbx[pos1],-0.5,zbr);
-                evalua_rq(d_dVhu[pos1],d_hux[pos1],-0.5,qr);
+                rzb_eval(d_dVH[pos1],d_zbx[pos1],-0.5,zbr);
+                rq_eval(d_dVhu[pos1],d_hux[pos1],-0.5,qr);
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h);  
+                state_filter(hr, qr , epsilon_h);  
                 
                 #endif
                     
-                procesarArista(hl, zbl, ql, hr, zbr, qr, 1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
+                Riemann_solver(hl, zbl, ql, hr, zbr, qr, 1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,boundary);
             }
             else {
-                // Arista interna
-                // El volumen 1 de la arista est� situado a la derecha de la arista
+                // Internal riemann solver
                 pos1 = npx*j + i;
-//                 evalua_rh(d_dVh[pos1],d_hx[pos1],-0.5,hr);
-                evalua_rzb(d_dVH[pos1],d_zbx[pos1],-0.5,zbr);
-                evalua_rq(d_dVhu[pos1],d_hux[pos1],-0.5,qr);
+                rzb_eval(d_dVH[pos1],d_zbx[pos1],-0.5,zbr);
+                rq_eval(d_dVhu[pos1],d_hux[pos1],-0.5,qr);
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h);
-                procesarArista(hl, zbl, ql, hr, zbr, qr, 1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
+                state_filter(hr, qr , epsilon_h);
+                Riemann_solver(hl, zbl, ql, hr, zbr, qr, 1, 0, dx, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,boundary);
                 
             }
         }
     }
 }
 
-__global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_dVhu, double* d_hy, double2* d_huy, double* d_zby,int npx, int npy, double delta_T, double* d_Ah, double2* d_Ahu, double *d_Azb, double dy, double tiempo_act, int tipo,double epsilon_h,double vmax, double t)
+__global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_dVhu, double* d_hy, double2* d_huy, double* d_zby,int npx, int npy, double delta_T, double* d_Ah, double2* d_Ahu, double *d_Azb, double dy, double current_time, int type,double epsilon_h,double vmax, double t)
 {
     int i, j;
     
@@ -276,42 +288,35 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
     double zbl,zbr;
     
     int pos0,pos1;
-    int frontera=0;
+    int boundary=0;
     pos1 = -1;
     
-    // Multiplicamos j por 2 porque se procesan aristas alternas
-//     i = blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x;
-//     j = 2*(blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y);
-//     if (tipo == 2) j++;
-    if(tipo==1){
-        i = blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x;
-        j = 2*(blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y);        
+    if(type==1){
+        i = blockIdx.x*NUM_THREADS_HORIZONTAL_EDGES + threadIdx.x;
+        j = 2*(blockIdx.y*NUM_THREADS_VERTICAL_EDGES + threadIdx.y);        
     }
     else{
-        i = blockIdx.x*NUM_HEBRAS_ANCHO_ARI + threadIdx.x;
-        j = 2*(blockIdx.y*NUM_HEBRAS_ALTO_ARI + threadIdx.y) + 1;
+        i = blockIdx.x*NUM_THREADS_HORIZONTAL_EDGES + threadIdx.x;
+        j = 2*(blockIdx.y*NUM_THREADS_VERTICAL_EDGES + threadIdx.y) + 1;
     }
     
-    // Comprobamos si la hebra (arista) est� dentro de los l�mites de la malla
     if ((i < npx) && (j <= npy)) {
-        // Obtenemos los datos de los vol�menes 0 y 1
         if (j == 0) {
-            // Frontera inferior
+            // Boundary up
             // normal_y = -1.0
-            // El volumen 0 de la arista esta situado debajo de la arista
+            // Volumen 0 is under
             #if WBC==2
-            //                 continue;
+
             #else
-            frontera=1;
+            boundary=1;
             pos0 = npx*j + i;
             
-//             evalua_rh(d_dVh[pos0],d_hy[pos0],-0.5,hl);
-            evalua_rzb(d_dVH[pos0],d_zby[pos0],-0.5,zbl);
-            evalua_rq(d_dVhu[pos0],d_huy[pos0],-0.5,ql);
+            rzb_eval(d_dVH[pos0],d_zby[pos0],-0.5,zbl);
+            rq_eval(d_dVhu[pos0],d_huy[pos0],-0.5,ql);
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h);
+            state_filter(hl, ql , epsilon_h);
             
             hr=hl;
             zbr=zbl;
@@ -326,25 +331,24 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
             //             
             //             qr.x = 0.0;
             pos1=-1;
-            procesarArista(hl, zbl, ql, hr, zbr, qr, 0, -1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
-            #endif // Del WBC==2
+            Riemann_solver(hl, zbl, ql, hr, zbr, qr, 0, -1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,boundary);
+            #endif // Of WBC==2
             
         }
         else {
             // normal_y = 1.0
-            // El volumen 0 de la arista esta situado arriba de la arista
+            // Volumn 0 is up
             pos0 = npx*(j-1) + i;
-//             evalua_rh(d_dVh[pos0],d_hy[pos0],0.5,hl);
-            evalua_rzb(d_dVH[pos0],d_zby[pos0],0.5,zbl);
-            evalua_rq(d_dVhu[pos0],d_huy[pos0],0.5,ql);
+            rzb_eval(d_dVH[pos0],d_zby[pos0],0.5,zbl);
+            rq_eval(d_dVhu[pos0],d_huy[pos0],0.5,ql);
             
             hl = d_dVh[pos0];
             
-            filtro_estado(hl, ql , epsilon_h);
+            state_filter(hl, ql , epsilon_h);
             
             if (j == npy) {
-                frontera=3;
-                // Frontera superior. El volumen 1 es fantasma
+                boundary=3;
+                // Boundary up
                 hr=hl;
                 zbr=zbl;
                 qr.x=ql.x;
@@ -356,32 +360,29 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
                 
                 #if WBC==2
                 pos1 = i;
-//                 evalua_rh(d_dVh[pos1],d_hy[pos1],-0.5,hr);
-                evalua_rzb(d_dVH[pos1],d_zby[pos1],-0.5,zbr);
-                evalua_rq(d_dVhu[pos1],d_huy[pos1],-0.5,qr);
+                rzb_eval(d_dVH[pos1],d_zby[pos1],-0.5,zbr);
+                rq_eval(d_dVhu[pos1],d_huy[pos1],-0.5,qr);
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h);
+                state_filter(hr, qr , epsilon_h);
                 #endif
                 
                 pos1=-1;
-                procesarArista(hl, zbl, ql, hr, zbr, qr,0, 1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
+                Riemann_solver(hl, zbl, ql, hr, zbr, qr,0, 1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,boundary);
             }
             else {
-                // Arista interna
-                // El volumen 1 de la arista esta situado debajo de la arista
+                // Internal Riemann solver
+                // Volumen 1 is under
                 pos1 = npx*j + i;
-//                 evalua_rh(d_dVh[pos1],d_hy[pos1],-0.5,hr);
-                evalua_rzb(d_dVH[pos1],d_zby[pos1],-0.5,zbr);
-                evalua_rq(d_dVhu[pos1],d_huy[pos1],-0.5,qr);
+                rzb_eval(d_dVH[pos1],d_zby[pos1],-0.5,zbr);
+                rq_eval(d_dVhu[pos1],d_huy[pos1],-0.5,qr);
                 
                 hr = d_dVh[pos1];
                 
-                filtro_estado(hr, qr , epsilon_h);
+                state_filter(hr, qr , epsilon_h);
                 
-//                 if(abs(hr-hl)>1e-11) printf("%d   %d   %.15f  \n", i, j, hr-hl);
-                procesarArista(hl, zbl, ql, hr, zbr, qr,0, 1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,frontera);
+                Riemann_solver(hl, zbl, ql, hr, zbr, qr,0, 1, dy, delta_T,d_Ah, d_Ahu, d_Azb, pos0,pos1, epsilon_h,boundary);
             }
         }
     }
@@ -389,7 +390,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
 
 
 
-__device__ void procesarArista_Volumenes(double hhl, double zb0, double2 qql, double hhr, double zb1, double2 qqr, int pos0, int pos1, double epsilon_h, double vmax, double *FL, double *FR, int normal_x, int normal_y, int fixed_sediment, double dl){
+__device__ void RiemannSolver_Vols(double hhl, double zb0, double2 qql, double hhr, double zb1, double2 qqr, int pos0, int pos1, double epsilon_h, double vmax, double *FL, double *FR, int normal_x, int normal_y, int fixed_sediment, double dl){
     
     double2 q0,q1;
     double2 ql, qr;
@@ -405,10 +406,10 @@ __device__ void procesarArista_Volumenes(double hhl, double zb0, double2 qql, do
     qr.x = qqr.x*normal_x+qqr.y*normal_y;
     qr.y = qqr.y*normal_x-qqr.x*normal_y;
     
-    calculo_u(hhl,ql,epsilon_h,u0);
-    calculo_u(hhr,qr,epsilon_h,u1);
+    u_calculator(hhl,ql,epsilon_h,u0);
+    u_calculator(hhr,qr,epsilon_h,u1);
     
-    // Reconstruccion hidrostatica
+    // Hidrostatic Reconstruction
     double zmH = min(zb0,zb1);
     h0 = max(hhl-zb0+zmH,0.0);
     h1 = max(hhr-zb1+zmH,0.0);
@@ -424,24 +425,24 @@ __device__ void procesarArista_Volumenes(double hhl, double zb0, double2 qql, do
     double F0[4], F1[4];
     F0[0] = F0[1] = F0[2] = F0[3] = 0.0;
     F1[0] = F1[1] = F1[2] = F1[3] = 0.0;
-    flujoC(h0,u0,F0,fixed_sediment, zb1-zb0, dl);  // Apunte 1: Puesto que el sistema de referencia es con la H medida por encima de la batimetria, el sistema que resuelves es dt(H) - dx(qb) (ver articulo de Castro-Fernandez-Ferreiro). Por tanto, se pone un -1 en el flujo del sedimento.
-    flujoC(h1,u1,F1,fixed_sediment, zb1-zb0, dl);
+    Cflux(h0,u0,F0,fixed_sediment, zb1-zb0, dl);   // Note: Since the reference used is with H under the reference, we are actually solving the system dt(H) - dx(qb) (see article Castro-Fernandez-Ferreiro). So, we put a -1 in the sediment flux
+    Cflux(h1,u1,F1,fixed_sediment, zb1-zb0, dl);
 
-    double hm, zm; // Medias de Roe
+    double hm, zm; // Roe average
     double2 um;
     roe_average(h0,u0,zb0,h1,u1,zb1,hm,um,zm);
     
-    double autovalores[3], SL, SR;
+    double eigenvalues[3], SL, SR;
     
-    calc_autoval_aprox0(h0,u0,autovalores);
-    SL = autovalores[0];
+    calc_eigen_aprox0(h0,u0,eigenvalues);
+    SL = eigenvalues[0];
     
-    calc_autoval_aprox0(h1,u1,autovalores);
-    SR = autovalores[2];
+    calc_eigen_aprox0(h1,u1,eigenvalues);
+    SR = eigenvalues[2];
     
-    calc_autoval_aprox0(hm,um,autovalores);
-    SL=min(SL,autovalores[0]);
-    SR=max(SR,autovalores[2]);
+    calc_eigen_aprox0(hm,um,eigenvalues);
+    SL=min(SL,eigenvalues[0]);
+    SR=max(SR,eigenvalues[2]);
     
     double a0, a1;
     if (SR-SL>EPSILON) {
