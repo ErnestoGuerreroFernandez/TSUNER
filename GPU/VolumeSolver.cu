@@ -112,8 +112,8 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
                     if(current_time<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,npx,npy,2*npx+npy+j, tidesBd, tidesT, tidesNPT);
                     }
-                    else{ // Free boundary
-                        q1.x = q0.x;
+                    else{ // Wall boundary
+                        q1.x = -q0.x;
                     }
 #endif
 // h1= 4.0*cos(2*PI*current_time/5.0);
@@ -157,8 +157,8 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
                     if(current_time<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,npx,npy,npx+j, tidesBd, tidesT, tidesNPT);
                     }
-                    else{ // Free flow boundary
-                        q1.x = q0.x;
+                    else{ // Wall boundary
+                        q1.x = -q0.x;
                     }
 #endif
 
@@ -214,8 +214,8 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
                     if(current_time<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,npx,npy,i, tidesBd, tidesT, tidesNPT);
                     }
-                    else{ // Free flow boundary
-                        q1.y = q0.y;
+                    else{ // Wall boundary
+                        q1.y = -q0.y;
                     }
 #endif
 
@@ -257,8 +257,8 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
                     if(current_time<d_tCC[timeCC-2]){
                         interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,npx,npy,npx+npy+i, tidesBd, tidesT, tidesNPT);
                     }
-                    else{ // Free flow boundary
-                        q1.y = q0.y;
+                    else{ // Wall boundary
+                        q1.y = -q0.y;
                     }
 #endif
 

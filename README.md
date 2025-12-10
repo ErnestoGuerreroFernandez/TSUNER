@@ -11,6 +11,9 @@ The model allows you to:
 - Include Sea Level Rise in the simulations.
 - Choose between first and second order in space and time for the total global of accuracy (second order by default).
 - Allow for a choice between reading boundary conditions or defining a synthetic, mathematically defined initial condition.
+- Related with the previous item, you can run 1D simulations by setting the number of discretization points in one dimension to 1.
+
+
 Other Capabilities, not yet finished:
 - Include tide values in tsunami simulations.
 - Define different areas with different sediments within the computational domain.
@@ -64,7 +67,10 @@ my_source_file_v.nc
 
 ```
 
-These files must be in the same folder and also in spherical coordinates. They may use coordinates *(lat, lon)*, *(LAT, LON)* or *(x, y)*, plus the variable names *HA*, *UA* and *VA*. They are expected to be in centimeters, as this is the format used in NCTR. However, if your input files are in meters or any other system, it is not necessary to change the input files. Instead, you can change the parameter UNITS in the *Sim\_parameters.hxx* file. If you have meters, you set UNITS to 1. If you have centimeters (by default) you set UNITS to 0.01 and so on. See example files.
+These files must be in the same folder and also in spherical coordinates. They may use coordinates *(lat, lon)*, *(LAT, LON)* or *(x, y)*, plus the variable names *HA*, *UA* and *VA*. They are expected to be in centimeters, as this is the format used in NCTR. However, if your input files are in meters or any other system, it is not necessary to change the input files. Instead, you can change the parameter UNITS in the *Sim\_parameters.hxx* file. If you have meters, you set UNITS to 1. If you have centimeters (by default) you set UNITS to 0.01 and so on. 
+
+
+In the example folder you can find a bathymetry and source files as example. Due to Github file size restrictions, the files are low-resolution and do not include many time steps. However, they are enough to give you an idea of the input file format you need to use. You can use a netcdf reader, such as *ncdump*, to visualize variables names and formats.
 
 
 ### Output files
@@ -86,6 +92,7 @@ For questions or collaboration you can find me at ernestog@uw.edu. You can repor
 ## Cite
 
 You can cite this code with the following reference:
+
 Fernández, E. G., Díaz, M. C., Wei, Y., & Moore, C. (2024). Modeling sediment movement in the shallow-water framework: A morpho-hydrodynamic approach with numerical simulations and experimental validation. Ocean Modelling, 192, 102445.
 Or visit [this web](https://www.sciencedirect.com/science/article/pii/S146350032400132X?via%3Dihub) to download the reference.
 
