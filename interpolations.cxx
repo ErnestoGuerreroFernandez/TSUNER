@@ -437,10 +437,13 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
 
 
     iret = nc_inq_varid(idu, "ua_lc", &var_id);
-    if (iret != NC_NOERR) {
+    if (iret != NC_NOERR){
         iret = nc_inq_varid(idu, "UA", &var_id);
-        check_errGRD_inte(iret);
+        if (iret != NC_NOERR){
+            iret = nc_inq_varid(idu, "ua", &var_id);
+        }
     }
+    check_errGRD_inte(iret);
     iret = nc_get_vara_double(idu, var_id, start, count, fhu);
     check_errGRD_inte(iret);
     iret = nc_close(idu);
@@ -455,8 +458,11 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     iret = nc_inq_varid(idu, "va_lc", &var_id);
     if (iret != NC_NOERR) {
         iret = nc_inq_varid(idu, "VA", &var_id);
-        check_errGRD_inte(iret);
+        if (iret != NC_NOERR) {
+            iret = nc_inq_varid(idu, "va", &var_id);
+        }
     }
+    check_errGRD_inte(iret);
     iret = nc_get_vara_double(idu, var_id, start, count, fhv);
     check_errGRD_inte(iret);
     iret = nc_close(idu);
@@ -466,8 +472,11 @@ void interpolate_CC(string file, double *CC,  double *tCC, int npx, int npy, dou
     iret = nc_inq_varid(id, "ha_lc", &var_id);
     if (iret != NC_NOERR) {
         iret = nc_inq_varid(id, "HA", &var_id);
-        check_errGRD_inte(iret);
+        if (iret != NC_NOERR) {
+            iret = nc_inq_varid(id, "ha", &var_id);
+        }
     }
+    check_errGRD_inte(iret);
     iret = nc_get_vara_double(id, var_id, start, count, fh);
     check_errGRD_inte(iret);
 

@@ -563,7 +563,7 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
     //     printf("Done\n");
     printf("\n");
 
-    
+
     
     dx = (xmax-xmin)/(npx);
     dy = (ymax-ymin)/npy;

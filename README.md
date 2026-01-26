@@ -67,7 +67,7 @@ my_source_file_v.nc
 
 ```
 
-These files must be in the same folder and also in spherical coordinates. They may use coordinates *(lat, lon)*, *(LAT, LON)* or *(x, y)*, plus the variable names *HA*, *UA* and *VA*. They are expected to be in centimeters, as this is the format used in NCTR. However, if your input files are in meters or any other system, it is not necessary to change the input files. Instead, you can change the parameter UNITS in the *Sim\_parameters.hxx* file. If you have meters, you set UNITS to 1. If you have centimeters (by default) you set UNITS to 0.01 and so on. 
+These files must be in the same folder and also in spherical coordinates. They may use coordinates *(lat, lon)*, *(LAT, LON)* or *(x, y)*, plus the variable names *HA*, *UA* and *VA* (either capital or lowercase). They are expected to be in centimeters, as this is the format used in NCTR. However, if your input files are in meters or any other system, it is not necessary to change the input files. Instead, you can change the parameter UNITS in the *Sim\_parameters.hxx* file. If you have meters, you set UNITS to 1. If you have centimeters (by default) you set UNITS to 0.01 and so on. 
 
 
 In the example folder you can find a bathymetry and source files as example. Due to Github file size restrictions, the files are low-resolution and do not include many time steps. However, they are enough to give you an idea of the input file format you need to use. You can use a netcdf reader, such as *ncdump*, to visualize variables names and formats.
