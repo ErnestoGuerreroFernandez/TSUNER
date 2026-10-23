@@ -8,13 +8,13 @@
 # ymax
 5
 # Total simulation time
-3600
-# Save time every
 10
+# Save time every
+0.1
 # npx
-100
+50
 # npy
-100
+50
 # CFL
 0.9
 # epsilon_h. Threshold for a cell to be considered dry.
@@ -29,12 +29,14 @@
 0.4
 # Critical theta:
 0.0047
+# Geometric mean size of suspended sediment, typically between 8e-6 to 128e-6
+100e-6
 # Output file name
 sim
 # Input file for bathymetry. If the proper flag is not set in code, this line will be ignored.
-./example/westport_bathy_example.nc
+./borrar/seaside_3m_grid_ssl19.nc
 # Input file for free surface initial condition and boundary conditions. Note that this file must be consistent with the bathy file. No checks are performed, so expect undefined behaviour otherwise. Read the README for instruction on the name convention for this file.
-./example/westport_runupB_h.nc
+./borrar/seaside_runupB_h.nc
 # Input file with binary map for fixed bathymetry. If no map is required, enter 0. This file can have any size, but normally it would be consistent with the bathymetry file. Note that in the file, 1=sediment movement and 0=no sediment movement.
 0
 # Enter sea level correction for the simulation. In meters. Enter 0 for no correction.

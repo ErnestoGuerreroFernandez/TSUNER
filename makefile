@@ -5,7 +5,7 @@ export UNAME=$(shell uname -m)
 
 # Compilers
 export NVCC 		= $(CUDA_PATH)/bin/nvcc
-export CXX 		= g++
+export CXX 		= g++-14
 
 DEPS = ./GPU/libkernels.a
 

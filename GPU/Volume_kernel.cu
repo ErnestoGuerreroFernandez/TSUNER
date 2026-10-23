@@ -24,9 +24,9 @@
 
 
 
-__global__ void GetDeltaT(double* d_dVh, double2* d_dVhu, double *d_dVH, double* d_deltaTV, int npx, int npy, double dx, double dy, double CFL, double epsilon_h)
+__global__ void GetDeltaT(double* d_V, double* d_deltaTV, int npx, int npy, double dx, double dy, double CFL, double epsilon_h)
 {
-    int pos,i,j;
+    int pos,posv,i,j;
     double2 q;
     double2 u;
     double h;
@@ -40,9 +40,10 @@ __global__ void GetDeltaT(double* d_dVh, double2* d_dVhu, double *d_dVH, double*
     if ((i<npx) && (j<npy)) {
         
         pos=j*npx+i;
-        h=d_dVh[pos];
-        
-        q=d_dVhu[pos];
+        posv = pos*5;
+        h=d_V[posv];
+        q.x=d_V[posv+1];
+        q.y=d_V[posv+2];
         u_calculator(h, q, epsilon_h, u);
         
         cg=sqrt(G*h);
@@ -52,6 +53,9 @@ __global__ void GetDeltaT(double* d_dVh, double2* d_dVhu, double *d_dVH, double*
         dt = CFL * 0.5 * min(dx/lx, dy/ly); 
         
         d_deltaTV[pos]=dt;
+
+
+
     }
 }
 
@@ -98,31 +102,45 @@ __device__ void interpolate_timeSPL(double *CC, double *tCC, long unsigned int t
 
 
 
-__global__ void hmax_calculator(double* d_hmax, double * d_dVh, int npx, int npy) {
+__global__ void hmax_calculator(double* d_hmax, double * d_V, double epsilon_h, int npx, int npy) {
     int i,j;
-    int pos;
+    int pos,posv;
     i = blockIdx.x*NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
     j = blockIdx.y*NUM_THREADS_VERTICAL_VOL + threadIdx.y;
     if ((i<npx) && (j<npy)) {
        pos=j*npx+i;
-       if (d_dVh[pos]>EPSILON) {
-         d_hmax[pos]=max(d_hmax[pos],d_dVh[pos]);
+       posv = pos*5;
+       if (d_V[posv]>epsilon_h) {
+         d_hmax[pos]=max(d_hmax[pos],d_V[posv]);
        } 
     }
 
 }
-__global__ void bmin_calculator(double* d_bmin, double * d_VH0, int npx, int npy) {
+__global__ void bmin_calculator(double* d_bmin, double * d_V, int npx, int npy) {
     int i,j;
-    int pos;
+    int pos,posv;
     i = blockIdx.x*NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
     j = blockIdx.y*NUM_THREADS_VERTICAL_VOL + threadIdx.y;
     if ((i<npx) && (j<npy)) {
         pos=j*npx+i;
-        d_bmin[pos] = max(d_bmin[pos],d_VH0[pos]);
+        posv=pos*5;
+        d_bmin[pos] = max(d_bmin[pos],d_V[posv+3]);
     }
 }
 
-
+__global__ void eta_max_calculator(double* d_eta_max, double *d_V, double epsilon_h, int npx, int npy) {
+    int i, j;
+    int pos,posv;
+    i = blockIdx.x * NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
+    j = blockIdx.y * NUM_THREADS_VERTICAL_VOL + threadIdx.y;
+    if ((i < npx) && (j < npy)) {
+        pos = j * npx + i;
+        posv = pos*5;
+        if (d_V[posv] > epsilon_h) {
+            d_eta_max[pos] = max(d_eta_max[pos], d_V[posv] - d_V[posv+3]);
+        }
+    }
+}
 
 __global__ void set_inicializacion(double* d_hmax, int npx, int npy) {
     int i,j;
@@ -131,7 +149,7 @@ __global__ void set_inicializacion(double* d_hmax, int npx, int npy) {
     j = blockIdx.y*NUM_THREADS_VERTICAL_VOL + threadIdx.y;
     if ((i<npx) && (j<npy)) {
        pos=j*npx+i;
-       d_hmax[pos] = 0.0;
+       d_hmax[pos] = -1e30;
     }
 }
 __global__ void set_inicializacion_bmin(double *d_bmin, int npx, int npy){
@@ -144,6 +162,20 @@ __global__ void set_inicializacion_bmin(double *d_bmin, int npx, int npy){
         d_bmin[pos] = -1e30;
     }
 }
+
+
+__global__ void set_inicializacion_eta_max(double *d_eta_max, int npx, int npy) {
+    int i, j;
+    int pos;
+    i = blockIdx.x * NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
+    j = blockIdx.y * NUM_THREADS_VERTICAL_VOL + threadIdx.y;
+    if ((i < npx) && (j < npy)) {
+        pos = j * npx + i;
+        d_eta_max[pos] = -1e30;
+    }
+}
+
+
 
 __device__ void spongeLayer(double *d_Ah, double2 *d_Ahu, double *d_Azb, int npx, int npy, double *d, int pos, int pos1, int pos2, int posd1, int posd2, double *CC, double *tCC, long unsigned int timeCC, double current_time){
     
@@ -200,13 +232,13 @@ __device__ double dynamicRuptureInterpolation(double *dyrup, float *time_dyrup, 
 
 
 
-__global__ void states_updater(double* d_Ah, double2* d_Ahu, double *d_Azb, double* d0_dVh, double2* d0_dVhu, double *d0_dVH, double* d_dVh, double2* d_dVhu, double *d_dVH, int npx, int npy, int k, double epsilon_h, double invx, double invy, double *FL, double *FR, double *FU, double *FD, double *d, double current_time, double *d_CC, double *d_tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup)
+__global__ void states_updater(double* d_Vk, double* d_V0, double* d_V, int npx, int npy, int k, double epsilon_h, double invx, double invy, double *FL, double *FR, double *FU, double *FD, double *d, double current_time, double *d_CC, double *d_tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup)
 {
     int i,j;
     int pos;
     double coef0,coef1;
     double2 q;
-    double h;
+    double h, z, hc;
 
     i = blockIdx.x*NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
 	j = blockIdx.y*NUM_THREADS_VERTICAL_VOL + threadIdx.y;
@@ -214,12 +246,14 @@ __global__ void states_updater(double* d_Ah, double2* d_Ahu, double *d_Azb, doub
     if ((i<npx) && (j<npy)) {
         
         pos = j*npx + i;
-        int posF = pos*4;
+        int posF = pos*5;
+
+
         
-        d_Ah[pos] -= invx*(FL[posF]+FR[posF])  + invy*(FD[posF]+FU[posF]);
-        d_Ahu[pos].x -= invx*(FL[posF+1]+FR[posF+1])  + invy*(FD[posF+1]+FU[posF+1]);
-        d_Ahu[pos].y -= invx*(FL[posF+2]+FR[posF+2]) + invy*(FD[posF+2]+FU[posF+2]);
-        d_Azb[pos] -= invx*(FL[posF+3]+FR[posF+3])  + invy*(FD[posF+3]+FU[posF+3]);
+        d_Vk[posF]   -= invx*(FL[posF]  +FR[posF])    + invy*(FD[posF]+  FU[posF]);
+        d_Vk[posF+1] -= invx*(FL[posF+1]+FR[posF+1])  + invy*(FD[posF+1]+FU[posF+1]);
+        d_Vk[posF+2] -= invx*(FL[posF+2]+FR[posF+2])  + invy*(FD[posF+2]+FU[posF+2]);
+        d_Vk[posF+3] -= invx*(FL[posF+3]+FR[posF+3])  + invy*(FD[posF+3]+FU[posF+3]);
         
         
 #if SPL>0        
@@ -277,43 +311,49 @@ __global__ void states_updater(double* d_Ah, double2* d_Ahu, double *d_Azb, doub
         coef0=0.0*(k==0) + 0.5*((k==1)) ;
         coef1=1.0-coef0;
         
-        h   = coef0 * d0_dVh[pos] + coef1 * d_Ah[pos];
-        q.x = coef0 * d0_dVhu[pos].x + coef1 * d_Ahu[pos].x;
-        q.y = coef0 * d0_dVhu[pos].y + coef1 * d_Ahu[pos].y;
-        d_Azb[pos] = coef0 * d0_dVH[pos] + coef1 * d_Azb[pos];
+
+        h   = coef0 * d_V0[posF]   + coef1 * d_Vk[posF];
+        q.x = coef0 * d_V0[posF+1] + coef1 * d_Vk[posF+1];
+        q.y = coef0 * d_V0[posF+2] + coef1 * d_Vk[posF+2];
+        z   = coef0 * d_V0[posF+3] + coef1 * d_Vk[posF+3];
+        hc  = coef0 * d_V0[posF+4] + coef1 * d_Vk[posF+4];
 
 
         
         state_filter(h,q,epsilon_h);
         
-        d_Ah[pos] = h;
-        d_Ahu[pos].x = q.x;
-        d_Ahu[pos].y = q.y;
+        d_Vk[posF]   = h;
+        d_Vk[posF+1] = q.x;
+        d_Vk[posF+2] = q.y;
+        d_Vk[posF+3] = z;
+        d_Vk[posF+4] = hc;
         
         
         if(k==order-1){
-            d0_dVh[pos] = h;
-            d0_dVhu[pos].x =q.x;
-            d0_dVhu[pos].y =q.y;
-            d0_dVH[pos] =d_Azb[pos];
+            d_V0[posF]   = h;
+            d_V0[posF+1] = q.x;
+            d_V0[posF+2] = q.y;
+            d_V0[posF+3] = z;
+            d_V0[posF+4] = hc;
            
-            d_dVh[pos] = h;
-            d_dVhu[pos].x =q.x;
-            d_dVhu[pos].y =q.y;
-            d_dVH[pos] =d_Azb[pos];
+            d_V[posF]   = h;
+            d_V[posF+1] = q.x;
+            d_V[posF+2] = q.y;
+            d_V[posF+3] = z;
+            d_V[posF+4] = hc;
+
         }
         else{
-            d_dVh[pos] = h;
-            d_dVhu[pos].x =q.x;
-            d_dVhu[pos].y =q.y;
-            d_dVH[pos] =d_Azb[pos];
+            d_V[posF]   = h;
+            d_V[posF+1] = q.x;
+            d_V[posF+2] = q.y;
+            d_V[posF+3] = z;
+            d_V[posF+4] = hc;
         }
 #else
- 
-        d_dVh[pos] = d0_dVh[pos] = d_Ah[pos];
-        d_dVH[pos] = d0_dVH[pos] = d_Azb[pos];
-        d_dVhu[pos].x = d0_dVhu[pos].x = d_Ahu[pos].x;
-        d_dVhu[pos].y = d0_dVhu[pos].y = d_Ahu[pos].y;
+        for (int i=0;i<5;i++){
+            d_V[posF+i] = d_V0[posF+i] = d_Vk[posF+i];
+        }
 #endif
         
     }

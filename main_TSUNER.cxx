@@ -26,7 +26,7 @@
 extern "C" int checkCUDAsupport(int cudaDevice);
 extern "C" void initializeGPU();
 
-extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *input_prefix,  double total_time, double save_time, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup, double &tiempo, int CudaDevice, double *tides_bd, float *tides_time, int tidesNPT);
+extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *input_prefix,  double total_time, double save_time, double CFL, double Q, double DS, double FR, double Opar, double OC, double Dsg, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup, double &tiempo, int CudaDevice, double *tides_bd, float *tides_time, int tidesNPT);
 
 /*********************/
 /* Fin funciones GPU */
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     string input_file;
     string input_prefix;      // Prefijo de los ficheros NetCDF
     double time_gpu;
-    double OC, Opar, Q, HQB, DS, FR;
+    double OC, Opar, Q, HQB, DS, FR, Dsg;
     //     int SPL = 5;
 
     // Fichero de datos
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
     }
     initializeGPU();
 
-    err = LoadProblemData(input_file, input_prefix, &dVh, &dVhu, &dVH, &CC, &tCC, &fixH, &dyrup, &time_dyrup, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, total_time, save_time, CFL, Q, DS, FR, Opar, OC, HQB, vmax, epsilon_h, &tides_bd, &tides_time, tidesNPT);
+    err = LoadProblemData(input_file, input_prefix, &dVh, &dVhu, &dVH, &CC, &tCC, &fixH, &dyrup, &time_dyrup, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, total_time, save_time, CFL, Q, DS, FR, Opar, OC, Dsg, HQB, vmax, epsilon_h, &tides_bd, &tides_time, tidesNPT);
     if (err > 0)
         return EXIT_FAILURE;
     cout << scientific;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     #endif
 
 
-    err = TSUNER(dVh, dVhu, dVH, fixH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) input_prefix.c_str(), total_time, save_time, CFL, Q,DS,FR,Opar, OC, HQB, vmax,epsilon_h, d, CC, tCC, timeCC, dyrup, time_dyrup, time_gpu,cudaDevice, tides_bd, tides_time, tidesNPT);
+    err = TSUNER(dVh, dVhu, dVH, fixH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) input_prefix.c_str(), total_time, save_time, CFL, Q,DS,FR,Opar, OC, Dsg, HQB, vmax, epsilon_h, d, CC, tCC, timeCC, dyrup, time_dyrup, time_gpu,cudaDevice, tides_bd, tides_time, tidesNPT);
     if (err > 0) {
         if (err == 1)
             cerr << "Error: Not enough GPU memory" << endl;

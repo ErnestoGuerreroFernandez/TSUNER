@@ -64,8 +64,8 @@ __device__ void Riemann_solver(double hhl, double zb0, double2 qql,  double hhr,
     double F0[4], F1[4];
     F0[0] = F0[1] = F0[2] = F0[3] = 0.0;
     F1[0] = F1[1] = F1[2] = F1[3] = 0.0;
-    Cflux(h0,u0,F0,1, zb1-zb0, dl);  // Note: Since the reference used is with H under the reference, we are actually solving the system dt(H) - dx(qb) (see article Castro-Fernandez-Ferreiro). So, we put a -1 in the sediment flux
-    Cflux(h1,u1,F1,1, zb1-zb0, dl);
+    Cflux(h0,u0,F0,1, zb1-zb0);  // Note: Since the reference used is with H under the reference, we are actually solving the system dt(H) - dx(qb) (see article Castro-Fernandez-Ferreiro). So, we put a -1 in the sediment flux
+    Cflux(h1,u1,F1,1, zb1-zb0);
 
     double hm, zm; // Roe average
     double2 um;
@@ -390,7 +390,7 @@ __global__ void procesarAristasHorGPU(double* d_dVH, double* d_dVh, double2* d_d
 
 
 
-__device__ void RiemannSolver_Vols(double hhl, double zb0, double2 qql, double hhr, double zb1, double2 qqr, int pos0, int pos1, double epsilon_h, double vmax, double *FL, double *FR, int normal_x, int normal_y, int fixed_sediment, double dl){
+__device__ void RiemannSolver_Vols(double hhl, double zb0, double2 qql, double hhr, double zb1, double2 qqr, int pos0, int pos1, double epsilon_h, double *FL, double *FR, int normal_x, int normal_y, int fixed_sediment){
     
     double2 q0,q1;
     double2 ql, qr;
@@ -425,8 +425,8 @@ __device__ void RiemannSolver_Vols(double hhl, double zb0, double2 qql, double h
     double F0[4], F1[4];
     F0[0] = F0[1] = F0[2] = F0[3] = 0.0;
     F1[0] = F1[1] = F1[2] = F1[3] = 0.0;
-    Cflux(h0,u0,F0,fixed_sediment, zb1-zb0, dl);   // Note: Since the reference used is with H under the reference, we are actually solving the system dt(H) - dx(qb) (see article Castro-Fernandez-Ferreiro). So, we put a -1 in the sediment flux
-    Cflux(h1,u1,F1,fixed_sediment, zb1-zb0, dl);
+    Cflux(h0,u0,F0,fixed_sediment, zb1-zb0);   // Note: Since the reference used is with H under the reference, we are actually solving the system dt(H) - dx(qb) (see article Castro-Fernandez-Ferreiro). So, we put a -1 in the sediment flux
+    Cflux(h1,u1,F1,fixed_sediment, zb1-zb0);
 
     double hm, zm; // Roe average
     double2 um;

@@ -29,7 +29,7 @@
 
 
 
-void saveNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num, int npx, int npy, int nvol, double current_time)
+void saveNetCDF(double *V, double *vec, int num, int npx, int npy, int nvol, double current_time)
 {
     double sim_time = current_time;
     double aux;
@@ -42,9 +42,9 @@ void saveNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num, i
     
 
     for (j=SPL; j<npy-SPL; j++) {
-        pos = j*npx;
         for (i=SPL; i<npx-SPL; i++) {
-            hn = dVh[pos + i] - dVH[pos + i];
+            pos = (j*npx+i)*5;
+            hn = V[pos] - V[pos + 3];
             vec[posv] = hn; 
             posv++;
         }
@@ -56,9 +56,9 @@ void saveNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num, i
     // u1x
     posv=0;
     for (j=SPL; j<npy-SPL; j++) {
-        pos = j*npx;
         for (i=SPL; i<npx-SPL; i++){
-            aux=(dVhu[pos + i].x)/(dVh[pos+i]+EPSILON);
+            pos = (j*npx+i)*5;
+            aux=(V[pos + 1])/(V[pos]+EPSILON);
             vec[posv] = aux;
             posv++;
         }
@@ -68,9 +68,9 @@ void saveNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num, i
     // u1y
     posv=0;
     for (j=SPL; j<npy-SPL; j++) {
-        pos = j*npx;
         for (i=SPL; i<npx-SPL; i++) {
-            aux=(dVhu[pos + i].y)/(dVh[pos+i]+EPSILON);
+            pos = (j*npx+i)*5;
+            aux=(V[pos + 2])/(V[pos]+EPSILON);
             vec[posv] = aux;
             posv++;
         }
@@ -80,9 +80,9 @@ void saveNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num, i
     // H
     posv=0;
     for (j=SPL; j<npy-SPL; j++) {
-        pos = j*npx;
         for (i=SPL; i<npx-SPL; i++) {
-            aux=(dVH[pos + i]);
+            pos = (j*npx+i)*5;
+            aux=(V[pos + 3]);
             vec[posv] = -aux;
             posv++;
         }
@@ -91,36 +91,21 @@ void saveNetCDF(double *dVh, double2 *dVhu, double* dVH, double *vec, int num, i
     
 }
 
-void freeMemoryGPU(double *d_dVh, double2 *d_dVhu, double* d_dVH, double *d_Ah, double *d_Azb, double2 *d_Ahu, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, double* reconsLh, double* reconsRh, double *reconsDh, double *reconsUh, double *reconsDzb, double *reconsUzb, double *reconsLzb, double *reconsRzb, double2* reconsDhu, double2* reconsUhu, double2 *reconsLhu, double2 *reconsRhu, double* d_hmax, double *d_deltaTV, double *d_CC, double *d_tCC, double *FL, double *FRR, double *FU, double *FD, double *d_bmin)
+void freeMemoryGPU(double *d_V, double *d_V0, double* d_Vk, double* reconsL, double* reconsR, double *reconsD, double *reconsU, double* d_hmax, double *d_deltaTV, double *d_CC, double *d_tCC, double *FL, double *FRR, double *FU, double *FD, double *d_bmin, double *d_eta_max)
 {
     cudaFree(d_hmax);
     cudaFree(d_bmin);
-    cudaFree(d_dVh);
-    cudaFree(d_dVhu);
-    cudaFree(d_dVH);
+    cudaFree(d_eta_max);
+    cudaFree(d_V);
+    cudaFree(d_V0);
+    cudaFree(d_Vk);
     
     cudaFree(d_deltaTV);
     
-    cudaFree(d0_dVh);
-    cudaFree(d0_dVH);
-    cudaFree(d0_dVhu);
-    
-    cudaFree(d_Ah);
-    cudaFree(d_Azb);
-    cudaFree(d_Ahu);
-    
-    cudaFree(reconsLh);
-    cudaFree(reconsRh);
-    cudaFree(reconsUh);
-    cudaFree(reconsDh);
-    cudaFree(reconsLzb);
-    cudaFree(reconsRzb);
-    cudaFree(reconsUzb);
-    cudaFree(reconsDzb);
-    cudaFree(reconsLhu);
-    cudaFree(reconsRhu);
-    cudaFree(reconsUhu);
-    cudaFree(reconsDhu);
+    cudaFree(reconsL);
+    cudaFree(reconsR);
+    cudaFree(reconsU);
+    cudaFree(reconsD);
     
     cudaFree(FL);
     cudaFree(FRR);
@@ -133,29 +118,25 @@ void freeMemoryGPU(double *d_dVh, double2 *d_dVhu, double* d_dVH, double *d_Ah, 
 }
 
 // Returns 0 if all good, 1 if not enough GPU memory and 2 if not enough CPU memory
-extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *input_prefix,  double total_time, double save_time, double CFL, double Q, double DS, double FR, double Opar, double OC, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup, double &sim_time, int CudaDevice, double *tides_bd, float *tides_time, int tidesNPT)
+extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *input_prefix,  double total_time, double save_time, double CFL, double Q, double DS, double FRc, double Opar, double OC, double Dsg, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup, double &sim_time, int CudaDevice, double *tides_bd, float *tides_time, int tidesNPT)
 {
     
-    double2 *d_dVhu;
-    double2 *d0_dVhu;
-    double2 *d_Ahu;
-    double *d_dVh,*d_dVH, *d0_dVh,*d_Ah,*d_Azb, *d0_dVH;
+    double *d_V, *d_V0,*d_Vk;
     int *d_fixH;
 
     double *d_d;
 
     
-    
-    double *d_hmax, *d_bmin;
-    double *reconsLh, *reconsRh, *reconsUh, *reconsDh;
-    double *reconsLzb, *reconsRzb, *reconsUzb, *reconsDzb;
-    double2 *reconsLhu, *reconsRhu, *reconsUhu, *reconsDhu;
-    double *d_CC;
-    double *d_tCC;
+    double *d_hmax, *d_bmin, *d_eta_max;
+    double *reconsL, *reconsR, *reconsU, *reconsD;
+    double *d_CC=nullptr;
+    double *d_tCC=nullptr;
     double *d_dyrup;
     float *d_time_dyrup;
     double *d_tidesBd;
     float *d_tidesT;
+    double *V;
+
 
     double *d_deltaTV;
     double *vec;
@@ -168,7 +149,10 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
     
     int VolDoubleData_size  = nvol*sizeof(double);
     int VolDouble2Data_size = nvol*sizeof(double2);
-    
+    int sizeofdouble2 = sizeof(double2);
+    int sizeofdouble = sizeof(double);
+    V = new double [nvol*5];
+
     double current_time, delta_T;
 
     StopWatchInterface *timer = NULL;
@@ -181,56 +165,39 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
     
     
     cudaMemcpyToSymbol(d_OC,&OC, sizeof(double));
-    cudaMemcpyToSymbol(d_FR,&FR, sizeof(double));
+    cudaMemcpyToSymbol(d_FR,&FRc, sizeof(double));
     cudaMemcpyToSymbol(d_Opar,&Opar, sizeof(double));
     cudaMemcpyToSymbol(d_DS,&DS, sizeof(double));
     cudaMemcpyToSymbol(d_Q,&Q, sizeof(double));
     cudaMemcpyToSymbol(d_HQB,&HQB, sizeof(double));
+    cudaMemcpyToSymbol(d_Dsg,&Dsg, sizeof(double));
     
     
     err=cudaMalloc((void **)&d_hmax,VolDoubleData_size);
     err+=cudaMalloc((void **)&d_bmin,VolDoubleData_size);
-    err+=cudaMalloc((void **)&d_dVh, VolDoubleData_size);
-    err+=cudaMalloc((void **)&d_dVhu, VolDouble2Data_size);
+    err+=cudaMalloc((void **)&d_eta_max, VolDoubleData_size);
+    err+=cudaMalloc((void **)&d_V, 5*VolDoubleData_size);
+    err+=cudaMalloc((void **)&d_V0, 5*VolDoubleData_size);
+    err+=cudaMalloc((void **)&d_Vk, 5*VolDoubleData_size);
 
     cudaMalloc((void **)&d_d, SPL*sizeof(double));
 
     
-    err+=cudaMalloc((void **)&d_dVH, VolDoubleData_size);
     err+=cudaMalloc((void **)&d_fixH, nvol*sizeof(int));
-    
-    err+=cudaMalloc((void **)&d0_dVh, VolDoubleData_size);
-    err+=cudaMalloc((void **)&d0_dVH, VolDoubleData_size);
-    err+=cudaMalloc((void **)&d0_dVhu, VolDouble2Data_size);
     
     err+=cudaMalloc((void **)&d_deltaTV, VolDoubleData_size);
     
-    err+=cudaMalloc( (void **)&d_Ah, VolDoubleData_size);
-    err+=cudaMalloc( (void **)&d_Azb, VolDoubleData_size);
-    err+=cudaMalloc( (void **)&d_Ahu, VolDouble2Data_size);
+    err+=cudaMalloc((void **)&reconsL, 5*VolDoubleData_size);
+    err+=cudaMalloc((void **)&reconsR, 5*VolDoubleData_size);
+    err+=cudaMalloc((void **)&reconsU, 5*VolDoubleData_size);
+    err+=cudaMalloc((void **)&reconsD, 5*VolDoubleData_size);
     
-
-    err+=cudaMalloc((void **)&reconsLh, VolDoubleData_size);
-    err+=cudaMalloc((void **)&reconsRh, VolDoubleData_size);
-    err+=cudaMalloc((void **)&reconsUh, VolDoubleData_size);
-    err+=cudaMalloc((void **)&reconsDh, VolDoubleData_size);
+    double *FL, *FR, *FU, *FD;
     
-    err+=cudaMalloc((void **)&reconsLzb, VolDoubleData_size);
-    err+=cudaMalloc((void **)&reconsRzb, VolDoubleData_size);
-    err+=cudaMalloc((void **)&reconsUzb, VolDoubleData_size);
-    err+=cudaMalloc((void **)&reconsDzb, VolDoubleData_size);
-    
-    err+=cudaMalloc((void **)&reconsLhu, VolDouble2Data_size);
-    err+=cudaMalloc((void **)&reconsRhu, VolDouble2Data_size);
-    err+=cudaMalloc((void **)&reconsDhu, VolDouble2Data_size);
-    err+=cudaMalloc((void **)&reconsUhu, VolDouble2Data_size);
-    
-    double *FL, *FRR, *FU, *FD;
-    
-    err += cudaMalloc((void **)&FL, VolDoubleData_size*4);
-    err += cudaMalloc((void **)&FRR, VolDoubleData_size*4);
-    err += cudaMalloc((void **)&FU, VolDoubleData_size*4);
-    err += cudaMalloc((void **)&FD, VolDoubleData_size*4);
+    err += cudaMalloc((void **)&FL, VolDoubleData_size*5);
+    err += cudaMalloc((void **)&FR, VolDoubleData_size*5);
+    err += cudaMalloc((void **)&FU, VolDoubleData_size*5);
+    err += cudaMalloc((void **)&FD, VolDoubleData_size*5);
     
     #if (Read_files==1)
     err+=cudaMalloc((void **)&d_CC, (2*npx+2*npy)*4*timeCC*sizeof(double));
@@ -249,36 +216,21 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
     if (err >0) {
         cudaFree(d_hmax);
         cudaFree(d_bmin);
-        cudaFree(d_dVh);
-        cudaFree(d_dVhu);
-        cudaFree(d_dVH);
+        cudaFree(d_eta_max);
+        cudaFree(d_V);
+        cudaFree(d_V0);
+        cudaFree(d_Vk);
         cudaFree(d_fixH);
-        
-        cudaFree(d0_dVh);
-        cudaFree(d0_dVH);
-        cudaFree(d0_dVhu);
         
         cudaFree(d_deltaTV);
         
-        cudaFree(d_Ah);
-        cudaFree(d_Azb);
-        cudaFree(d_Ahu);
-        
-        cudaFree(reconsLh);
-        cudaFree(reconsRh);
-        cudaFree(reconsUh);
-        cudaFree(reconsDh);
-        cudaFree(reconsLzb);
-        cudaFree(reconsRzb);
-        cudaFree(reconsUzb);
-        cudaFree(reconsDzb);
-        cudaFree(reconsLhu);
-        cudaFree(reconsRhu);
-        cudaFree(reconsUhu);
-        cudaFree(reconsDhu);
+        cudaFree(reconsL);
+        cudaFree(reconsR);
+        cudaFree(reconsU);
+        cudaFree(reconsD);
         
         cudaFree(FL);
-        cudaFree(FRR);
+        cudaFree(FR);
         cudaFree(FU);
         cudaFree(FD);
         
@@ -297,36 +249,47 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
 
     // Grid and block size for CUDA
     dim3 blockGridEst(iDivUp(npx, NUM_THREADS_HORIZONTAL_VOL), iDivUp(npy, NUM_THREADS_VERTICAL_VOL));
+    dim3 blockGridEst_RiemannSolver(iDivUp(npx+1, NUM_THREADS_HORIZONTAL_VOL), iDivUp(npy+1, NUM_THREADS_VERTICAL_VOL));
     dim3 threadBlockEst(NUM_THREADS_HORIZONTAL_VOL, NUM_THREADS_VERTICAL_VOL);
 
-    // We copy data from CPU to GPU
-    cudaMemcpy(d_dVh, dVh, VolDoubleData_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_dVhu, dVhu, VolDouble2Data_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_dVH, dVH, VolDoubleData_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_fixH, fixH, nvol*sizeof(int), cudaMemcpyHostToDevice);
 
+
+
+    for (int i=0;i<nvol;i++){
+        int pos = i*5;
+        V[pos] = dVh[i];
+        V[pos+1] = dVhu[i].x;
+        V[pos+2] = dVhu[i].y;
+        V[pos+3] = dVH[i];
+        V[pos+4] = 0.0;
+    }
+    cudaMemcpy(d_V, V, 5*VolDoubleData_size, cudaMemcpyHostToDevice);
+
+
+
+    // We copy data from CPU to GPU
+    // cudaMemset(d_V,  0, 5*VolDoubleData_size);
+    // cudaMemcpy(d_V, dVh, VolDoubleData_size, cudaMemcpyHostToDevice);
+    // cudaMemcpy2D(d_V + nvol, sizeof(double), &(dVhu[0].x), sizeofdouble2, sizeof(double), nvol, cudaMemcpyHostToDevice);
+    // cudaMemcpy2D(d_V + 2 * nvol, sizeof(double), &(dVhu[0].y), sizeofdouble2, sizeof(double), nvol, cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_V + 3*nvol, dVH, VolDoubleData_size, cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_Vk, d_V, 5*VolDoubleData_size, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(d_V0, d_V, 5*VolDoubleData_size, cudaMemcpyDeviceToDevice);
+
+    cudaMemcpy(d_fixH, fixH, nvol*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_CC, CC, (2*npx+2*npy)*4*timeCC*sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_tCC, tCC, timeCC*sizeof(double), cudaMemcpyHostToDevice);
-
     cudaMemcpy(d_tidesBd, tides_bd, (2*npx+2*npy)*tidesNPT*sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_tidesT, tides_time, tidesNPT*sizeof(float), cudaMemcpyHostToDevice);
-
     cudaMemcpy(d_d, d, SPL*sizeof(double), cudaMemcpyHostToDevice);
-    
-    cudaMemcpy(d0_dVh, d_dVh, VolDoubleData_size, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(d0_dVH, d_dVH, VolDoubleData_size, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(d0_dVhu, d_dVhu, VolDouble2Data_size, cudaMemcpyDeviceToDevice);
-    
-    cudaMemcpy(d_Ah, d_dVh, VolDoubleData_size,cudaMemcpyDeviceToDevice);
-    cudaMemcpy(d_Azb, d_dVH, VolDoubleData_size,cudaMemcpyDeviceToDevice);
-    cudaMemcpy(d_Ahu, d_dVhu, VolDouble2Data_size,cudaMemcpyDeviceToDevice);
     
 
     vec = new double [nvol]();
     if (vec == NULL) {
         delete [] vec;
         
-        freeMemoryGPU(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD,d_bmin);
+        freeMemoryGPU(d_V, d_V0, d_Vk, reconsL, reconsR, reconsD, reconsU, d_hmax,d_deltaTV, d_CC, d_tCC, FL, FR, FU, FD,d_bmin,d_eta_max);
         if (tidesNPT>0){
             cudaFree(d_tidesBd);
             cudaFree(d_tidesT);
@@ -338,19 +301,20 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
         vec[i] = dVH[i];
     }
 
-    cudaMemcpyToSymbol(d_OC,  &OC,   sizeof(double));
-    cudaMemcpyToSymbol(d_FR,  &FR,   sizeof(double));
-    cudaMemcpyToSymbol(d_Opar,&Opar, sizeof(double));
-    cudaMemcpyToSymbol(d_DS,  &DS,   sizeof(double));
-    cudaMemcpyToSymbol(d_Q,   &Q,    sizeof(double));
-    cudaMemcpyToSymbol(d_HQB, &HQB,  sizeof(double));
+    // cudaMemcpyToSymbol(d_OC,  &OC,   sizeof(double));
+    // cudaMemcpyToSymbol(d_FR,  &FR,   sizeof(double));
+    // cudaMemcpyToSymbol(d_Opar,&Opar, sizeof(double));
+    // cudaMemcpyToSymbol(d_DS,  &DS,   sizeof(double));
+    // cudaMemcpyToSymbol(d_Q,   &Q,    sizeof(double));
+    // cudaMemcpyToSymbol(d_HQB, &HQB,  sizeof(double));
+    // cudaMemcpyToSymbol(d_Dsg, &Dsg,  sizeof(double));
     double R, porosity;
-    R = 1 + FR/(Opar*G*DS);
-    porosity = 1 - DS*sqrt(FR/Opar)/Q;
-    iter = initNC(input_prefix, npx, npy, xmin, xmax, ymin, ymax, total_time,vec, R, DS, FR, porosity, OC);
+    R = 1 + FRc/(Opar*G*DS);
+    porosity = 1 - DS*sqrt(FRc/Opar)/Q;
+    iter = initNC(input_prefix, npx, npy, xmin, xmax, ymin, ymax, total_time,vec, R, DS, FRc, porosity, OC);
 
     if (iter == 1) {
-        freeMemoryGPU(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD,d_bmin);
+        freeMemoryGPU(d_V, d_V0, d_Vk, reconsL, reconsR, reconsD, reconsU, d_hmax,d_deltaTV, d_CC, d_tCC, FL, FR, FU, FD,d_bmin,d_eta_max);
         if (tidesNPT>0){
             cudaFree(d_tidesBd);
             cudaFree(d_tidesT);
@@ -361,11 +325,13 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
 
     set_inicializacion<<<blockGridEst, threadBlockEst>>>(d_hmax,npx,npy);  // Set h_max to 0
     set_inicializacion_bmin<<<blockGridEst, threadBlockEst>>>(d_bmin,npx,npy);
+    set_inicializacion_eta_max<<<blockGridEst, threadBlockEst>>>(d_eta_max, npx, npy);
+
     // CALCULO DEL DELTA_T INICIAL
-    GetDeltaT<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_deltaTV, npx, npy,dx, dy,CFL, epsilon_h);
+    GetDeltaT<<<blockGridEst, threadBlockEst>>>(d_V, d_deltaTV, npx, npy, dx, dy, CFL, epsilon_h);
     delta_T = MinReduction<double>(d_deltaTV, nvol);
     fprintf(stdout, "Initial deltaT = %e sec\n", delta_T);
-    
+
 
     iter = 1;
     sdkCreateTimer(&timer);
@@ -373,23 +339,20 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
     current_time = 0.0;
     double next_save_time = current_time;
 
-        double aux[npx*npy];
-    for (int i=0;i<nvol;i++){
-        aux[i] = dVH[i];
-    }
-
     
     while (current_time < total_time) {
         if ((save_time >= 0.0) && (current_time >= next_save_time)) {
-            cudaMemcpy(dVh, d_dVh, VolDoubleData_size, cudaMemcpyDeviceToHost);
-            cudaMemcpy(dVH, d_dVH, VolDoubleData_size, cudaMemcpyDeviceToHost);
-            cudaMemcpy(dVhu, d_dVhu, VolDouble2Data_size, cudaMemcpyDeviceToHost);
+            cudaMemcpy(V, d_V, 5*VolDoubleData_size, cudaMemcpyDeviceToHost);
             cudaMemcpy(vec, d_hmax, VolDoubleData_size, cudaMemcpyDeviceToHost);
             write_hmax(vec);
-            saveNetCDF(dVh, dVhu, dVH, vec, niters, npx, npy, nvol, current_time);
+            cudaMemcpy(vec, d_eta_max, VolDoubleData_size, cudaMemcpyDeviceToHost);
+            write_eta_max(vec);
+            saveNetCDF(V, vec, niters, npx, npy, nvol, current_time);
             niters++;
             next_save_time += save_time;
         }
+
+
 
         #if RK == 1
             for (int k=0; k<order; k++) {
@@ -399,20 +362,21 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
         #endif
 
             // Reconstruction and frictions
-            reconstructor<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, npx, npy, delta_T, inv_dx, inv_dy, epsilon_h,d_Ahu,d0_dVh,d0_dVhu);
+            reconstructor<<<blockGridEst, threadBlockEst>>>(d_V, reconsL, reconsR, reconsD, reconsU, npx, npy, delta_T, inv_dx, inv_dy, epsilon_h, d_Vk, d_V0);
 
             // Solver
-            VolumeSolver(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, current_time, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FRR, FU, FD, d_CC, d_tCC, timeCC, d_tidesBd, d_tidesT, tidesNPT);
+            VolumeSolver<<<blockGridEst_RiemannSolver, threadBlockEst>>>(d_fixH, npx, npy, current_time, epsilon_h, reconsL, reconsR, reconsD, reconsU, FL, FR, FU, FD, d_CC, d_tCC, timeCC, d_tidesBd, d_tidesT, tidesNPT);
 
             // Updater
-            states_updater<<<blockGridEst, threadBlockEst>>>(d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, d_dVh,d_dVhu,d_dVH,npx, npy, k, epsilon_h, delta_T*inv_dx, delta_T*inv_dy, FL, FRR, FU, FD, d_d, current_time, d_CC, d_tCC, timeCC,d_dyrup,d_time_dyrup);
+            states_updater<<<blockGridEst, threadBlockEst>>>(d_Vk, d_V0, d_V, npx, npy, k, epsilon_h, delta_T*inv_dx, delta_T*inv_dy, FL, FR, FU, FD, d_d, current_time, d_CC, d_tCC, timeCC,d_dyrup,d_time_dyrup);
         }
 
         current_time += delta_T;
 
-        hmax_calculator<<<blockGridEst, threadBlockEst>>>(d_hmax,d_dVh,npx,npy);
-        bmin_calculator<<<blockGridEst, threadBlockEst>>>(d_bmin,d_dVH,npx,npy);
-        GetDeltaT<<<blockGridEst, threadBlockEst>>>(d_dVh, d_dVhu, d_dVH, d_deltaTV, npx, npy,dx, dy,CFL, epsilon_h);
+        hmax_calculator<<<blockGridEst, threadBlockEst>>>(d_hmax,d_V,epsilon_h,npx,npy);
+        bmin_calculator<<<blockGridEst, threadBlockEst>>>(d_bmin,d_V,npx,npy);
+        eta_max_calculator<<<blockGridEst, threadBlockEst>>>(d_eta_max, d_V, epsilon_h, npx, npy);
+        GetDeltaT<<<blockGridEst, threadBlockEst>>>(d_V, d_deltaTV, npx, npy, dx, dy, CFL, epsilon_h);
 
         delta_T = MinReduction<double>(d_deltaTV, nvol);
 
@@ -423,37 +387,38 @@ extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double
 
     }
 
-    cudaMemcpy(dVh, d_dVh, VolDoubleData_size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(dVH, d_dVH, VolDoubleData_size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(dVhu, d_dVhu, VolDouble2Data_size, cudaMemcpyDeviceToHost);
-
-    saveNetCDF(dVh, dVhu, dVH, vec, niters, npx, npy, nvol, current_time);
+    cudaMemcpy(V, d_V, 5*VolDoubleData_size, cudaMemcpyDeviceToHost);
+    saveNetCDF(V, vec, niters, npx, npy, nvol, current_time);
 
     cudaDeviceSynchronize();
     cudaMemcpy(vec, d_hmax, VolDoubleData_size, cudaMemcpyDeviceToHost);
     write_hmax(vec);
+    cudaMemcpy(vec, d_eta_max, VolDoubleData_size, cudaMemcpyDeviceToHost);
+    write_eta_max(vec);
     cudaMemcpy(vec, d_bmin, VolDoubleData_size, cudaMemcpyDeviceToHost);
     for (int i=0; i<nvol;i++) vec[i] = -vec[i];
     write_bmin(vec);
     sdkStopTimer(&timer);
-    sim_time = sdkGetTimerValue(&timer)*0.001;  // En segundos
+    sim_time = sdkGetTimerValue(&timer)*0.001;  // In seconds
 
-
+/*
     double maux=-1e30;
     for (int i=0;i<nvol;i++){
-        aux[i] -= dVH[i];
-        maux = max(aux[i],maux);
+        // aux[i] -= dVH[i];
+        // maux = max(aux[i],maux);
+        printf("%f\n",vec[i]);
     }
 
-    cout<<maux<<endl;
+    // cout<<maux<<endl;*/
 
     sdkDeleteTimer(&timer);
-    freeMemoryGPU(d_dVh, d_dVhu, d_dVH, d_Ah, d_Azb, d_Ahu, d0_dVh, d0_dVhu, d0_dVH, reconsLh, reconsRh, reconsDh, reconsUh, reconsDzb, reconsUzb, reconsLzb, reconsRzb, reconsDhu, reconsUhu, reconsLhu, reconsRhu,d_hmax,d_deltaTV, d_CC, d_tCC, FL, FRR, FU, FD,d_bmin);
+    freeMemoryGPU(d_V, d_V0, d_Vk, reconsL, reconsR, reconsD, reconsU, d_hmax,d_deltaTV, d_CC, d_tCC, FL, FR, FU, FD,d_bmin,d_eta_max);
     if (tidesNPT>0){
         cudaFree(d_tidesBd);
         cudaFree(d_tidesT);
     }
     delete [] vec;
+    delete [] V;
 
     cudaFree(d_d);
 

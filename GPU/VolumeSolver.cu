@@ -75,12 +75,13 @@ __device__ void interpolate_time(double *CC, double *tCC, long unsigned int time
 }
 
 
-__global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double current_time, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC, double *tidesBd, float *tidesT, int tidesNPT){
+__global__ void VolumeSolver (int *fixH, int npx, int npy, double current_time, double epsilon_h, double* reconsL, double* reconsR, double* reconsD, double* reconsU, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC, double *tidesBd, float *tidesT, int tidesNPT){
 
 	int i = blockIdx.x*NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
 	int j = blockIdx.y*NUM_THREADS_HORIZONTAL_VOL  + threadIdx.y;
     int pos0, pos1;
-    double h0, h1, zb0, zb1;
+    int posr0, posr1;
+    double h0, h1, zb0, zb1, hc0, hc1;
     double2 q0, q1;
     int fixed_sediment=0; // if 0, it does not move. If 1, it moves normally.
 
@@ -90,6 +91,8 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 
                 pos0 = i-1 + j*npx;
                 pos1 = i + j*npx;
+                posr0 = pos0*5;
+                posr1 = pos1*5;
                 
                 
                 if(i==0){
@@ -99,11 +102,14 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 #else
                     pos0 = pos1;
                     pos1 = -1;
+                    posr0=posr1;
+                    posr1=-1;
                         
-                    h1 = h0 = reconsLh[pos0];
-                    zb1 = zb0 = reconsLzb[pos0];
-                    q1.x = q0.x = reconsLhu[pos0].x;
-                    q1.y = q0.y = reconsLhu[pos0].y;
+                    h1   = h0   = reconsL[posr0];
+                    q1.x = q0.x = reconsL[posr0+1];
+                    q1.y = q0.y = reconsL[posr0+2];
+                    zb1  = zb0  = reconsL[posr0+3];
+                    hc1  = hc0  = reconsL[posr0+4];
                         
 #if WBC==1
                     q1.x = -q0.x;
@@ -120,33 +126,39 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 // q1.x = h1*q1.x/h0;
 
                     fixed_sediment = fixH[pos0];
-                    pos0 *=4;
-                    RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,-1,0,fixed_sediment,dx);
+
+                    RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,posr0,posr1,epsilon_h,FL,FR,-1,0,fixed_sediment);
 #endif
                 }
                 else{
                     if(i==npx){
 #if WBC==2
                         pos1 = j*npx;
-                        h0 = reconsRh[pos0];
-                        zb0 = reconsRzb[pos0];
-                        q0.x = reconsRhu[pos0].x;
-                        q0.y = reconsRhu[pos0].y;
+                        posr1 = pos1*5;
+
+                        h0   = reconsR[posr0];
+                        q0.x = reconsR[posr0+1];
+                        q0.y = reconsR[posr0+2];
+                        zb0  = reconsR[posr0+3];
+                        hc0  = reconsR[posr0+4];
                         
-                        h1 = reconsLh[pos1];
-                        zb1 = reconsLzb[pos1];
-                        q1.x = reconsLhu[pos1].x;
-                        q1.y = reconsLhu[pos1].y;
+                        h1   = reconsL[posr1];
+                        q1.x = reconsL[posr1+1];
+                        q1.y = reconsL[posr1+2];
+                        zb1  = reconsL[posr1+3];
+                        hc1  = reconsL[posr1+4];
                         
-                        pos1 *=4;
+
                         
 #else
                         pos1 = -2;
+                        posr1 = -2;
                         
-                        h1 = h0 = reconsRh[pos0];
-                        zb1 = zb0 = reconsRzb[pos0];
-                        q1.x = q0.x = reconsRhu[pos0].x;
-                        q1.y = q0.y = reconsRhu[pos0].y;
+                        h1   = h0   = reconsR[posr0];
+                        q1.x = q0.x = reconsR[posr0+1];
+                        q1.y = q0.y = reconsR[posr0+2];
+                        zb1  = zb0  = reconsR[posr0+3];
+                        hc1  = hc0  = reconsR[posr0+4];
                         
 #if WBC==1
                         q1.x = -q0.x;
@@ -163,25 +175,24 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 #endif
 
                         fixed_sediment = fixH[pos0];
-                        pos0 *=4;
-                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment,dx);
+                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,posr0,posr1,epsilon_h,FL,FR,1,0,fixed_sediment);
                         
                     }
                     else{
-                        h0 = reconsRh[pos0];
-                        zb0 = reconsRzb[pos0];
-                        q0.x = reconsRhu[pos0].x;
-                        q0.y = reconsRhu[pos0].y;
+                        h0   = reconsR[posr0];
+                        q0.x = reconsR[posr0+1];
+                        q0.y = reconsR[posr0+2];
+                        zb0  = reconsR[posr0+3];
+                        hc0  = reconsR[posr0+4];
                         
-                        h1 = reconsLh[pos1];
-                        zb1 = reconsLzb[pos1];
-                        q1.x = reconsLhu[pos1].x;
-                        q1.y = reconsLhu[pos1].y;
+                        h1   = reconsL[posr1];
+                        q1.x = reconsL[posr1+1];
+                        q1.y = reconsL[posr1+2];
+                        zb1  = reconsL[posr1+3];
+                        hc1  = reconsL[posr1+4];
    
                         fixed_sediment = fixH[pos0]*fixH[pos1];
-                        pos0 *=4;
-                        pos1 *=4;
-                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FL,FR,1,0,fixed_sediment,dx);
+                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,posr0,posr1,epsilon_h,FL,FR,1,0,fixed_sediment);
                     }
                 }
                 
@@ -193,6 +204,8 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
                 // Riemann problems at horizontal edges
                 pos0 = i + (j-1)*npx;
                 pos1 = i + j*npx;
+                posr0 = pos0*5;
+                posr1 = pos1*5;
                 
                 
                 if(j==0){
@@ -202,10 +215,14 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 #else
                     pos0 = pos1;
                     pos1 = -1;
-                    h1 = h0 = reconsDh[pos0];
-                    zb1 = zb0 = reconsDzb[pos0];
-                    q1.x = q0.x = reconsDhu[pos0].x;
-                    q1.y = q0.y = reconsDhu[pos0].y;
+                    posr0 = posr1;
+                    posr1 = -1;
+
+                    h1   = h0   = reconsD[posr0];
+                    q1.x = q0.x = reconsD[posr0+1];
+                    q1.y = q0.y = reconsD[posr0+2];
+                    zb1  = zb0  = reconsD[posr0+3];
+                    hc1  = hc0  = reconsD[posr0+4];
 #if WBC==1
                     q1.y = -q0.y;
 #endif
@@ -221,33 +238,36 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 
                     
                     fixed_sediment = fixH[pos0];
-                    pos0 *=4;
-                    RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,-1,fixed_sediment,dy);
+                    RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,posr0,posr1,epsilon_h,FD,FU,0,-1,fixed_sediment);
 #endif
                 }
                 else{
                     if(j==npy){
 #if WBC==2                        
                         pos1 = i;
+                        posr1 = pos1*5;
                         
-                        h0 = reconsUh[pos0];
-                        zb0 = reconsUzb[pos0];
-                        q0.x = reconsUhu[pos0].x;
-                        q0.y = reconsUhu[pos0].y;
+                        h0   = reconsU[posr0];
+                        q0.x = reconsU[posr0+1];
+                        q0.y = reconsU[posr0+2];
+                        zb0  = reconsU[posr0+3]
+                        hc0  = reconsU[posr0+4];
                         
-                        h1 = reconsDh[pos1];
-                        zb1 = reconsDzb[pos1];
-                        q1.x = reconsDhu[pos1].x;
-                        q1.y = reconsDhu[pos1].y;
+                        h1   = reconsD[posr1];
+                        q1.x = reconsD[posr1+1];
+                        q1.y = reconsD[posr1+2];
+                        zb1  = reconsD[posr1+3];
+                        hc1  = reconsD[posr1+4];
                         
-                        pos1*=4;
-                        
+
 #else
                         pos1 = -2;
-                        h1 = h0 = reconsUh[pos0];
-                        zb1 = zb0 = reconsUzb[pos0];
-                        q1.x = q0.x = reconsUhu[pos0].x;
-                        q1.y = q0.y = reconsUhu[pos0].y;
+                        posr1 = -2;
+                        h1   = h0   = reconsU[posr0];
+                        q1.x = q0.x = reconsU[posr0+1];
+                        q1.y = q0.y = reconsU[posr0+2];
+                        zb1  = zb0  = reconsU[posr0+3];
+                        hc1  = hc0  = reconsU[posr0+4];
 #if WBC==1
                         q1.y = -q0.y;
 #endif
@@ -265,26 +285,25 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 // h1= 4.0*cos(2*PI*current_time/5.0);
 // q1.y = h1*q1.y/h0;
                         fixed_sediment = fixH[pos0];
-                        pos0 *=4;
-                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment,dy);
+                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,posr0,posr1,epsilon_h,FD,FU,0,1,fixed_sediment);
                         
                     }
                     else{
-                        h0 = reconsUh[pos0];
-                        zb0 = reconsUzb[pos0];
-                        q0.x = reconsUhu[pos0].x;
-                        q0.y = reconsUhu[pos0].y;
+                        h0   = reconsU[posr0];
+                        q0.x = reconsU[posr0+1];
+                        q0.y = reconsU[posr0+2];
+                        zb0  = reconsU[posr0+3];
+                        hc0  = reconsU[posr0+4];
                         
-                        h1 = reconsDh[pos1];
-                        zb1 = reconsDzb[pos1];
-                        q1.x = reconsDhu[pos1].x;
-                        q1.y = reconsDhu[pos1].y;
+                        h1   = reconsD[posr1];
+                        q1.x = reconsD[posr1+1];
+                        q1.y = reconsD[posr1+2];
+                        zb1  = reconsD[posr1+3];
+                        hc1  = reconsD[posr1+4];
                         
                         
                         fixed_sediment = fixH[pos0]*fixH[pos1];
-                        pos0 *=4;
-                        pos1*=4;
-                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,pos0,pos1,epsilon_h,vmax,FD,FU,0,1,fixed_sediment,dy);
+                        RiemannSolver_Vols(h0,zb0,q0,h1,zb1,q1,posr0,posr1,epsilon_h,FD,FU,0,1,fixed_sediment);
                     }
                 }
             }
@@ -298,17 +317,4 @@ __global__ void Volumes (int *fixH, double *d_dVh, double2 *d_dVhu, double *d_dV
 
 
 
-inline void VolumeSolver(int *d_fixH, double *d_dVh, double2 *d_dVhu, double *d_dVH, double *d_Ah, double2 *d_Ahu, double *d_Azb, double *d0_dVh, double2 *d0_dVhu, double *d0_dVH, int npx, int npy, double delta_T, double dx, double dy, double current_time, double epsilon_h, double vmax, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC, double *tidesBd, float *tidesT, int tidesNPT)
-{
-    
-    
-    
-    dim3 blockGridEst(iDivUp(npx+1, NUM_THREADS_HORIZONTAL_VOL), iDivUp(npy+1, NUM_THREADS_VERTICAL_VOL));
-    dim3 threadBlockEst(NUM_THREADS_HORIZONTAL_VOL, NUM_THREADS_VERTICAL_VOL);
-    
-    
-    Volumes<<<blockGridEst, threadBlockEst>>>(d_fixH, d_dVh, d_dVhu, d_dVH, d_Ah, d_Ahu, d_Azb, d0_dVh, d0_dVhu, d0_dVH, npx, npy, delta_T, dx, dy, current_time, epsilon_h, vmax, reconsLh, reconsRh, reconsDh, reconsUh, reconsLzb, reconsRzb, reconsDzb, reconsUzb, reconsLhu, reconsRhu, reconsDhu, reconsUhu, FL, FR, FU, FD, d_CC, d_tCC, timeCC, tidesBd, tidesT, tidesNPT);
-
-    
-}
 #endif 

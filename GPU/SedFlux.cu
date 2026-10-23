@@ -70,7 +70,7 @@ __device__ void rq_eval(double2 q,double2 dq, double val, double2& qr) {
 }
 
 
-__device__ double bedload(double h, double2 un, double db, double dx){
+__device__ double bedload(double h, double2 un, double db){
 	double qb;
 	double K1;
 	double O;
@@ -91,12 +91,12 @@ __device__ double bedload(double h, double2 un, double db, double dx){
 }
 
 
-__device__ void Cflux(double h, double2 u, double *F,int fixed_sediment, double db, double dx){
+__device__ void Cflux(double h, double2 u, double *F,int fixed_sediment, double db){
     
     F[0] = h*u.x;
     F[1] = F[0]*u.x;
     F[2] = F[0]*u.y;
-    F[3] = bedload(h,u, db, dx) *fixed_sediment  * SEDIMENT;
+    F[3] = bedload(h,u, db) *fixed_sediment  * SEDIMENT;
 
 }
 

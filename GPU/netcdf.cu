@@ -32,6 +32,7 @@ int vel_id[2];
 int hmax_id;
 int zb_id;
 int bmin_id;
+int eta_max_id;
 
 void check_err(int iret)
 {
@@ -94,6 +95,8 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	check_err(iret);
 	iret=nc_def_var(ncid,"bmin",NC_DOUBLE,2,grid_dims,&bmin_id);
 	check_err(iret);
+	iret = nc_def_var(ncid, "eta_max", NC_DOUBLE, 2, grid_dims, &eta_max_id);
+	check_err(iret);
     var_dims[0] = time_dim;
     var_dims[1] = y_dim;
     var_dims[2] = x_dim;
@@ -149,6 +152,17 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	iret = nc_put_att_double(ncid, bmin_id, "missing_value", NC_DOUBLE, 1, &fill_double);
 	check_err(iret);
 	iret = nc_put_att_double(ncid, bmin_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
+	check_err(iret);
+
+	iret = nc_put_att_text(ncid, eta_max_id, "long_name", 7, "eta_max");
+	check_err(iret);
+	iret = nc_put_att_text(ncid, eta_max_id, "standard_name", 7, "eta_max");
+	check_err(iret);
+	iret = nc_put_att_text(ncid, eta_max_id, "units", 6, "meters");
+	check_err(iret);
+	iret = nc_put_att_double(ncid, eta_max_id, "missing_value", NC_DOUBLE, 1, &fill_double);
+	check_err(iret);
+	iret = nc_put_att_double(ncid, eta_max_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
 	check_err(iret);
 
 
@@ -369,6 +383,11 @@ void write_hmax(double *hmax) {
 void write_bmin(double *bmin) {
 	int iret;
 	iret = nc_put_var_double(ncid, bmin_id, bmin);
+	check_err(iret);
+}
+void write_eta_max(double *eta_max) {
+	int iret;
+	iret = nc_put_var_double(ncid, eta_max_id, eta_max);
 	check_err(iret);
 }
 void closeNC()

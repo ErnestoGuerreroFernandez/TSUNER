@@ -9,7 +9,7 @@ The model allows you to:
 - Same as above, but including sediment morphology evolution, with customizable sediment parameters.
 - Include a binary map that defines areas where there is no sediment evolution or where it occurs. This is useful to define human-made structures for the tsunami, such as harbors or ports.
 - Include Sea Level Rise in the simulations.
-- Choose between first and second order in space and time for the total global of accuracy (second order by default).
+- Choose between first and second order in space and time for the total order of accuracy (second order by default).
 - Allow for a choice between reading boundary conditions or defining a synthetic, mathematically defined initial condition.
 - Related with the previous item, you can run 1D simulations by setting the number of discretization points in one dimension to 1.
 

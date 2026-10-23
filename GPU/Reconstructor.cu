@@ -53,14 +53,14 @@ __device__ double minmod(double a, double b, double c)
     return d;
 }
 
-__device__ void friction(double2 &d_Ahu, double d0_dVh, double2 &d0_dVhu, double epsilon_h, double dt) {
+__device__ void friction(double* d_Vk, double* d_V0, int pos, double epsilon_h, double dt) {
     
     double h;
     double2 q, u;
     
-    h = d0_dVh;
-    q.x = d0_dVhu.x;
-    q.y = d0_dVhu.y;
+    h = d_V0[pos];
+    q.x = d_V0[pos+1];
+    q.y = d_V0[pos+2];
     
     u_calculator(h,q,epsilon_h,u);
     double modu = sqrt(u.x*u.x+u.y*u.y);
@@ -69,38 +69,88 @@ __device__ void friction(double2 &d_Ahu, double d0_dVh, double2 &d0_dVhu, double
     
 #if Manning ==1
     c = dt*d_FR*d_FR*modu/(pow(h,4.0/3.0));
-    d_Ahu.x *= (c);
-    d_Ahu.y *= (c);
+    d_Vk[pos+1] *= c;
+    d_Vk[pos+2] *= c;
 #else
-    d_Ahu.x /= (1.0+c);
-    d_Ahu.y /= (1.0+c);
+    d_Vk[pos+1] /= (1.0+c);
+    d_Vk[pos+2] /= (1.0+c);
 #endif    
     
             
 }
 
+/*
+__device__ void erosion_deposition(double* d_Vk, double* d_V0, double d.epsilon_h, double dt, int posr){
+
+    double Fe, Fd, phi;
+    double h, c;
+    double vs, Rp, nu;
+    double2 q, u;
+
+    nu = 1.002e-6; // Water kinematic viscosity
+    double s = sed.R-1; // Diff of relative densities
+
+    h = d_Vh0;
+    q.x = d_Vhu0.x;
+    q.y = d_Vhu0.y;
+    c = d_Vhc0/(h+epsilon_h);
+
+
+
+    calculo_u(h,q,epsilon_h,u);
+    double modu = sqrt(u.x*u.x+u.y*u.y);
+
+    vs = sqrt( (13.95*nu/sed.DS)*(13.95*nu/sed.DS) + 1.09 * s * G* sed.DS ) - 13.95*nu/sed.DS  ;
+    Rp = (sed.DS*sqrt(s*G*sed.DS))/nu; // Particle Reynolds number
+
+    calculate_erosion(u,modu,Rp,vs,sed,Fe);
+    calculate_deposition(c,vs,sed,Fd);
+
+    phi = Fe - Fd;
+
+
+    double aux = Vhc;
+    double aux2 = Vb;
+    Vhc = Vhc + dt*phi;//*(h>0.001);
+    Vb = Vb - dt*phi;//*(h>0.001);
+
+    // printf("%.14f    %.14f \n",aux-Vhc,aux2-Vb);
+
+
+    // if(Fd!=0.0)
+    // printf("%.14f      %.14f  \n",Fe,Vhc/(h+EPSILON));
+
+
+}*/
 
 
 
 
 
-__global__ void reconstructor(double* d_dVh, double2* d_dVhu, double* d_dVH, double* reconsLh, double* reconsRh, double* reconsDh, double* reconsUh, double* reconsLzb, double* reconsRzb, double* reconsDzb, double* reconsUzb, double2* reconsLhu, double2* reconsRhu, double2* reconsDhu, double2* reconsUhu,int npx, int npy, double delta_T, double inv_dx, double inv_dy, double epsilon_h,double2* d_Ahu, double *d0_dVh, double2 *d0_dVhu) {
+__global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, double* reconsD, double* reconsU, int npx, int npy, double delta_T, double inv_dx, double inv_dy, double epsilon_h, double* d_Vk, double *d_V0) {
 
 
     int i,j;
-    int pos;
+    int pos, posr;
 	i = blockIdx.x*NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
 	j = blockIdx.y*NUM_THREADS_VERTICAL_VOL + threadIdx.y;
 
     if ((i<npx) && (j<npy)) {
         pos = j*npx + i;
+        posr = pos*5;
         
 #if order == 1
 
-        reconsLh[pos] = reconsRh[pos] = reconsUh[pos] = reconsDh[pos] = d_dVh[pos];
-        reconsLzb[pos] = reconsRzb[pos] = reconsUzb[pos] = reconsDzb[pos] = d_dVH[pos];
-        reconsLhu[pos].x = reconsRhu[pos].x = reconsUhu[pos].x = reconsDhu[pos].x = d_dVhu[pos].x;
-        reconsLhu[pos].y = reconsRhu[pos].y = reconsUhu[pos].y = reconsDhu[pos].y = d_dVhu[pos].y;
+        // printf("i = %i   %.14f\n",i,d_V[posr+3]);
+
+        reconsL[posr]   = reconsR[posr]   = reconsU[posr]   = reconsD[posr]   = d_V[posr];
+        reconsL[posr+1] = reconsR[posr+1] = reconsU[posr+1] = reconsD[posr+1] = d_V[posr+1];
+        reconsL[posr+2] = reconsR[posr+2] = reconsU[posr+2] = reconsD[posr+2] = d_V[posr+2];
+        reconsL[posr+3] = reconsR[posr+3] = reconsU[posr+3] = reconsD[posr+3] = d_V[posr+3];
+        reconsL[posr+4] = reconsR[posr+4] = reconsU[posr+4] = reconsD[posr+4] = d_V[posr+4];
+
+
+
         
 #else   
 
@@ -325,7 +375,9 @@ __global__ void reconstructor(double* d_dVh, double2* d_dVhu, double* d_dVH, dou
         
         
         // Frictions
-        friction(d_Ahu[pos], d0_dVh[pos], d0_dVhu[pos], epsilon_h, delta_T);
+        friction(d_Vk, d_V0, posr, epsilon_h, delta_T);
+        // erosion_deposition(d_Vk, d_V0, d.epsilon_h, d.delta_T, posr);
+
     }
 
 }

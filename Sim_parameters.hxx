@@ -46,13 +46,13 @@
 #define SEDIMENT    1   //If 0, the bedload doesn't move. The model is then equivalent to standar SW. If 1, it moves normally.
 // #define bedload_formula 1
 
-#define order       2
+#define order       1
 #define RK          1  // If RK==1, perform Runge-Kutta. If 0, perfoms MUSCL-Hancook (second order ADER aka Cauchy-Kovaleskaya). Note that MUSCL-Hancook is not fully tested
 
 #define WBC         1  // Wall type boundary conditions. 2=periodic, 1=wall, 0=free flow.
 #define SPL         0  // Sponge layer. It has to be >=0. 0=no Sponge layer. Do not use if Read_files==0
 
-#define Read_files  1 // If 1, it reads the initial condition, bathymetry and boundary conditions from the files in data.dat. If 0, it reads the initial condition from the functions defined in cini.cxx.
+#define Read_files  0 // If 1, it reads the initial condition, bathymetry and boundary conditions from the files in data.dat. If 0, it reads the initial condition from the functions defined in cini.cxx.
 
 // Likely, you do not want to modify parameters after this.
 
@@ -85,6 +85,7 @@ __device__ double d_Q;
 __device__ double d_DS;
 __device__ double d_HQB;
 __device__ double d_FR;
+__device__ double d_Dsg;
 // __device__ int d_SPL;
 #endif
 

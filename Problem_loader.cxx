@@ -256,7 +256,7 @@ void freeMemoryCPU(double *dVh, double2 *dVhu, double* dVH, int *fixH, double *C
 
 
 // Returns 0 if all good, 1 if some file does not exist, 2 if there is not enough memory
-int LoadProblemData(string input_file, string &input_prefix, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, int **fixH, double **dyrup, float **time_dyrup, unsigned long int &time_grid, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &total_time, double &save_time, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &HQB, double &vmax, double &epsilon_h, double **tides_bd, float **tides_time, int &tidesNPT)
+int LoadProblemData(string input_file, string &input_prefix, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, int **fixH, double **dyrup, float **time_dyrup, unsigned long int &time_grid, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &total_time, double &save_time, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &Dsg, double &HQB, double &vmax, double &epsilon_h, double **tides_bd, float **tides_time, int &tidesNPT)
 {
     int i, j;
     int pos;
@@ -317,6 +317,9 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
     fich >> c;
     std::getline(fich, line);
     fich >> OC;
+    fich >> c;
+    std::getline(fich, line);
+    fich >> Dsg;
     fich >> c;
     std::getline(fich, line);
     fich >> input_prefix;
