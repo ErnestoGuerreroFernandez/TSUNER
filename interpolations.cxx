@@ -15,8 +15,7 @@
 
 
 
-#include <netcdf.h>
-#include "Sim_parameters.hxx" 
+#include "TSUNER.h"
 
 
 bool ErrorNetCDF_inte;
@@ -77,11 +76,11 @@ inline double L2_2(double x, double x0, double x1, double x2){
 
 
 
-inline void dy_transform(double &val){
+void dy_transform(double &val){
     val = (2*PI*Re)/360;
 }
 
-inline void dx_transform(double ymin, double dy, int tam, double xmax, double xmin, double *dx, double dx_cartesianas, double &dmax){
+void dx_transform(double ymin, double dy, int tam, double xmax, double xmin, double *dx, double dx_cartesianas, double &dmax){
     dmax = -1.0;
     for (int i=0;i<tam;i++){
         double lat;

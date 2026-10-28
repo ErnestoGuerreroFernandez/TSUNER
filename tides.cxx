@@ -14,8 +14,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-#include <netcdf.h>
-#include "Sim_parameters.hxx"
+#include "TSUNER.h"
 
 
 int ncid_tides;

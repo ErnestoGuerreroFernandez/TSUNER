@@ -14,17 +14,11 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-
-#ifndef _VOLUMEN_KERNEL_H_
-#define _VOLUMEN_KERNEL_H_
-
-#include <stdio.h>
-#include "Sim_parameters.hxx"
-#include "SedFlux.cu"
+#include "GPU_kernels.cuh"
+#include "SedFlux.cuh"
 
 
-
-__global__ void GetDeltaT(double* d_V, double* d_deltaTV, int npx, int npy, double dx, double dy, double CFL, double epsilon_h)
+__global__ void GetDeltaT(double* d_V, double* d_deltaTV, SimParams params)
 {
     int pos,posv,i,j;
     double2 q;
@@ -37,20 +31,20 @@ __global__ void GetDeltaT(double* d_V, double* d_deltaTV, int npx, int npy, doub
 	j = blockIdx.y*NUM_THREADS_VERTICAL_VOL + threadIdx.y;
     
 
-    if ((i<npx) && (j<npy)) {
+    if ((i<params.npx) && (j<params.npy)) {
         
-        pos=j*npx+i;
+        pos=j*params.npx+i;
         posv = pos*5;
         h=d_V[posv];
         q.x=d_V[posv+1];
         q.y=d_V[posv+2];
-        u_calculator(h, q, epsilon_h, u);
+        u_calculator(h, q, params.epsilon_h, u);
         
         cg=sqrt(G*h);
         lx=fabs(u.x)+cg;
         ly=fabs(u.y)+cg;
 //         dt=CFL*0.5*dx*dy/(dy*lx+dx*ly+EPSILON);
-        dt = CFL * 0.5 * min(dx/lx, dy/ly); 
+        dt = params.CFL * 0.5 * min(params.dx/lx, params.dy/ly);
         
         d_deltaTV[pos]=dt;
 
@@ -59,7 +53,7 @@ __global__ void GetDeltaT(double* d_V, double* d_deltaTV, int npx, int npy, doub
     }
 }
 
-__device__ void interpolate_timeSPL(double *CC, double *tCC, long unsigned int timeCC, double current_time, double &h1, double &zb1, double2 &q1, int npx, int npy, int pos){
+static __device__ inline void interpolate_timeSPL(double *CC, double *tCC, long unsigned int timeCC, double current_time, double &h1, double &zb1, double2 &q1, int npx, int npy, int pos){
     
     
     double dt;
@@ -254,6 +248,7 @@ __global__ void states_updater(double* d_Vk, double* d_V0, double* d_V, int npx,
         d_Vk[posF+1] -= invx*(FL[posF+1]+FR[posF+1])  + invy*(FD[posF+1]+FU[posF+1]);
         d_Vk[posF+2] -= invx*(FL[posF+2]+FR[posF+2])  + invy*(FD[posF+2]+FU[posF+2]);
         d_Vk[posF+3] -= invx*(FL[posF+3]+FR[posF+3])  + invy*(FD[posF+3]+FU[posF+3]);
+        d_Vk[posF+4] -= invx*(FL[posF+4]+FR[posF+4])  + invy*(FD[posF+4]+FU[posF+4]);
         
         
 #if SPL>0        
@@ -320,7 +315,7 @@ __global__ void states_updater(double* d_Vk, double* d_V0, double* d_V, int npx,
 
 
         
-        state_filter(h,q,epsilon_h);
+        state_filter(h,q,hc,epsilon_h);
         
         d_Vk[posF]   = h;
         d_Vk[posF+1] = q.x;
@@ -363,4 +358,4 @@ __global__ void states_updater(double* d_Vk, double* d_V0, double* d_V, int npx,
 
 
 
-#endif
+

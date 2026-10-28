@@ -40,7 +40,7 @@ The simulations are mainly controlled by two files: *Sim\_parameters.cxx* and *d
 - The order of the numerical simulation (first or second).
 - The boundary conditions.
 - The units of the initial condition files (by default they are in cm).
-- It also allows you to switch the program's behavior to read files for input or to define a set of initial conditions from the *cini.cxx* file.
+- It also allows you to switch the program's behavior to read external files for input or to define a set of initial conditions from the *cini.cxx* file.
 - To remove all sediment evolution behaviour, thus turning the code into standard Shallow-water equations.
 - Other general parameters you likely do not want to change, such as gravity or the volumetric mean earth radius.
 Note that you need to compile the code again after any changes in this file. There is no check for inconsistent choices (like periodic boundary conditions and reading external files) so make sure your selection is correct.
@@ -75,7 +75,7 @@ In the example folder you can find a bathymetry and source files as example. Due
 
 ### Output files
 
-The program will create a NetCDF file with the name specified in *data.dat*. It saves the bathymetry evolution, free surface, velocities, the maximum water depth across all time steps and the minimum bathymetry value across all time steps. Any NetCDF reader can be used but I recommend [Paraview](https://www.paraview.org/) or Python.
+The program will create a NetCDF file with the name specified in *data.dat*. It saves the bathymetry evolution, free surface, velocities, suspended concentration, the maximum water depth across all time steps and the minimum bathymetry value across all time steps. Any NetCDF reader can be used but I recommend [Paraview](https://www.paraview.org/) or Python.
 
 ## Contributors
 
@@ -83,7 +83,7 @@ This program has been mainly developed by Ernesto Guerrero Fernandez, under the 
 
 ## Scientific background
 
-The model  solves the PDE system for the Shallow-Water equations with a coupled transport equation for the bathymetry function. The numerical scheme is based on the path-conservative technique. You can see the full paper describing the model in the following link: [https://repository.library.noaa.gov/view/noaa/67438/noaa_67438_DS1.pdf](https://repository.library.noaa.gov/view/noaa/67438/noaa_67438_DS1.pdf)
+The model  solves the PDE system for the Shallow-Water equations with a coupled transport equation for the bathymetry function and suspension. The numerical scheme is based on the path-conservative technique. You can see the full paper describing the model in the following link: [https://repository.library.noaa.gov/view/noaa/67438/noaa_67438_DS1.pdf](https://repository.library.noaa.gov/view/noaa/67438/noaa_67438_DS1.pdf)
 
 ## Contact
 

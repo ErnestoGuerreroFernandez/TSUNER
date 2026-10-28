@@ -15,10 +15,8 @@
 
 
 
-#ifndef _REDUCCION_KERNEL_MIN_H_
-#define _REDUCCION_KERNEL_MIN_H_
 
-#include "sharedmem.cuh"
+#include "GPU_kernels.cuh"
 
 /*
     This version adds multiple elements per thread sequentially.  This reduces the overall
@@ -197,49 +195,5 @@ T MinReduction(T *d_data, int size)
 	return minimo;
 }
 
-template <class T>
-T obtenerMinimoReduccionNoMod(T *d_idata, T *d_odata, int size)
-{
-	int maxBlocks = 64, maxThreads = 128;
-	int numBlocks, numThreads;
-	int i;
-	T h_data[4096];
-	T minimo;
 
-	if (size > 4096) {
-		// Ejecutamos el kernel
-		getNumBlocksAndThreadsMin(size, maxBlocks, maxThreads, numBlocks, numThreads);
-		reduce_min<T>(numBlocks, numThreads, d_idata, d_odata, size);
-
-		// Obtenemos el mínimo de los resultados parciales de los bloques en GPU
-		// hasta que el número de elementos sea menor o igual que 4096
-		int s = numBlocks;
-		while (s > 4096) {
-			getNumBlocksAndThreadsMin(s, maxBlocks, maxThreads, numBlocks, numThreads);
-			reduce_min<T>(numBlocks, numThreads, d_idata, d_odata, s);
-			s = s / (numThreads*2);
-		}
-
-		// Copiamos los elementos que quedan de GPU a CPU y terminamos de
-		// procesarlos en CPU
-		cudaMemcpy(h_data, d_odata, numBlocks*sizeof(T), cudaMemcpyDeviceToHost);
-		minimo = (T) 1e30;
-		for (i=0; i<numBlocks; i++) {
-			if (h_data[i] < minimo)
-				minimo = h_data[i];
-		}
-	}
-	else {
-		// Copiamos los elementos de GPU a CPU y los procesamos en CPU
-		cudaMemcpy(h_data, d_odata, size*sizeof(T), cudaMemcpyDeviceToHost);
-		minimo = (T) 1e30;
-		for (i=0; i<size; i++) {
-			if (h_data[i] < minimo)
-				minimo = h_data[i];
-		}
-	}
-
-	return minimo;
-}
-
-#endif
+template double MinReduction<double>(double *d_in, int n);

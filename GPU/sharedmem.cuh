@@ -27,8 +27,6 @@
 * source code with only those rights set forth herein.
 */
 
-#ifndef _SHAREDMEM_H_
-#define _SHAREDMEM_H_
 
 //****************************************************************************
 // Because dynamically sized shared memory arrays are declared "extern",
@@ -150,4 +148,3 @@ struct SharedMemory <double>
 };
 
 
-#endif //_SHAREDMEM_H_

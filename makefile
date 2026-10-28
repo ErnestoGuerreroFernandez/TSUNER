@@ -1,31 +1,49 @@
-.SUFFIXES:	.cu .c
+.SUFFIXES: .cu .c .cxx
 
-export CUDA_PATH=/usr/local/cuda
-export UNAME=$(shell uname -m)
+export CUDA_PATH = /usr/local/cuda
+export UNAME     = $(shell uname -m)
 
 # Compilers
-export NVCC 		= $(CUDA_PATH)/bin/nvcc
-export CXX 		= g++-14
+export NVCC      = $(CUDA_PATH)/bin/nvcc
+export CXX       = g++
 
-DEPS = ./GPU/libkernels.a
+# Directory for auxiliary build files
+OBJ_DIR := obj
 
-export CXXFLAGS         =-O2
-export CXXINC          =-I./ -I$(CUDA_PATH)/include -I/share/apps/NETCDF_C/include
-export CXXLIBS         =-L./GPU  -lkernels -L$(CUDA_PATH)/lib64 -L/usr/local/cuda/lib64 -lcudart -L/share/apps/NETCDF_C/lib -lnetcdf
-OBJSC 	:= main_TSUNER.o
+# Source files
+SRCS    := main_TSUNER.cxx Problem_loader.cxx interpolations.cxx cini.cxx tides.cxx
 
-%.o: 	%.cxx
-	$(CXX) $(CXXFLAGS) $(CXXINC) -c $*.cxx
+# Place all .o files inside $(OBJ_DIR)/
+OBJSC   := $(patsubst %.cxx, $(OBJ_DIR)/%.o, $(SRCS))
 
+export CXXFLAGS  = -O2 -MMD -MP
+export CXXINC    = -I./ -I$(CUDA_PATH)/include -I/share/apps/NETCDF_C/include
+export CXXLIBS   = -L./GPU -Wl,--start-group -lkernels -Wl,--end-group \
+                   -L$(CUDA_PATH)/lib64 -lcudart \
+                   -L/share/apps/NETCDF_C/lib -lnetcdf
 
 all: kernels tsuner.exe
+
+# Compile .cxx into obj/%.o (the '|' ensures the directory is created first)
+$(OBJ_DIR)/%.o: %.cxx | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(CXXINC) -c $< -o $@
+
+# Create obj/ folder if it doesn't exist
+$(OBJ_DIR):
+	mkdir -p $@
+
+# Build the GPU library inside GPU/
 kernels:
-	cd GPU; make; cd ..;
+	$(MAKE) -C GPU
 
-tsuner.exe: $(OBJSC)
-	$(CXX)  -o $@ $(OBJSC) $(CXXLIBS)  
+# Link final executable
+tsuner.exe: $(OBJSC) GPU/libkernels.a
+	$(CXX) -o $@ $(OBJSC) $(CXXLIBS)
 
-.PHONY: clean
+# Include dependency files located in obj/
+-include $(OBJSC:.o=.d)
+
+.PHONY: clean kernels
 clean:
-	rm -fr *.o *~ *.exe
-	cd GPU; make clean; cd ..;
+	rm -rf $(OBJ_DIR) *.o *.d *~ *.exe
+	$(MAKE) -C GPU clean

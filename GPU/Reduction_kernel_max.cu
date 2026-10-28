@@ -15,10 +15,8 @@
 
 
 
-#ifndef _REDUCCION_KERNEL_H_
-#define _REDUCCION_KERNEL_H_
 
-#include "sharedmem.cuh"
+#include "GPU_kernels.cuh"
 
 /*
     This version adds multiple elements per thread sequentially.  This reduces the overall
@@ -244,4 +242,4 @@ T obtenerMaximoReduccionNoMod(T *d_idata, T *d_odata, int size)
 	return maximo;
 }
 
-#endif
+

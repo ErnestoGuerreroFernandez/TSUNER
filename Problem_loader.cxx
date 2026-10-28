@@ -15,12 +15,7 @@
 
 
 
-#include <sys/stat.h> 
-#include <fstream>
-#include <netcdf.h>
-#include "cini.cxx"
-#include "interpolations.cxx"
-#include "tides.cxx"
+#include "TSUNER.h"
 
 int ncid_bati;
 int ncid_IC;
@@ -210,13 +205,13 @@ void ReadIcGRD(double *ci, long unsigned int &time)
     check_errGRD(iret);
     
     //     for (int t=0;t<time;t++)
-    for (int i=0; i<num_volx; i++) 
+    for (int i=0; i<num_volx; i++){
         for(int j=0;j<num_voly; j++)
         {
             ci[j*num_volx+i] = aux[j*num_volx+i];
         }
-
-        delete [] aux;
+    }
+    delete [] aux;
 
 }
 
@@ -256,7 +251,7 @@ void freeMemoryCPU(double *dVh, double2 *dVhu, double* dVH, int *fixH, double *C
 
 
 // Returns 0 if all good, 1 if some file does not exist, 2 if there is not enough memory
-int LoadProblemData(string input_file, string &input_prefix, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, int **fixH, double **dyrup, float **time_dyrup, unsigned long int &time_grid, double &xmin, double& xmax, double &ymin, double& ymax, int &npx, int &npy, int &nvol, double& dx, double& dy, double &total_time, double &save_time, double &CFL, double& Q, double& DS, double& FR, double& Opar, double &OC, double &Dsg, double &HQB, double &vmax, double &epsilon_h, double **tides_bd, float **tides_time, int &tidesNPT)
+int LoadProblemData(string input_file, string &input_prefix, double **dVh, double2 **dVhu, double **dVH, double **CC, double **tCC, int **fixH, double **dyrup, float **time_dyrup, unsigned long int &time_grid, SimParams &params, double **tides_bd, float **tides_time, int &tidesNPT)
 {
     int i, j;
     int pos;
@@ -265,7 +260,6 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
     string file_tides;
     double SLR_correction;
     char c;
-    double R, porosity;
     
     // We read the input data.dat file
     ifstream fich(input_file.c_str());
@@ -274,52 +268,52 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
     std::string line;
     std::getline(fich, line); // Coment in data.dat
     std::getline(fich, line);  
-    fich>> xmin;
+    fich>> params.xmin;
     fich >> c; // Line jump
     std::getline(fich, line);
-    fich>> xmax;
+    fich>> params.xmax;
     fich >> c;
     std::getline(fich, line);
-    fich>> ymin;
+    fich>> params.ymin;
     fich >> c;
     std::getline(fich, line);
-    fich>> ymax;
+    fich>> params.ymax;
     fich >> c;
     std::getline(fich, line);
-    fich >> total_time;
+    fich >> params.total_time;
     fich >> c;
     std::getline(fich, line);
-    fich >> save_time;
+    fich >> params.save_time;
     fich >> c;
     std::getline(fich, line);
-    fich >> npx;
+    fich >> params.npx;
     fich >> c;
     std::getline(fich, line);
-    fich >> npy;
+    fich >> params.npy;
     fich >> c;
     std::getline(fich, line);
-    fich >> CFL;
+    fich >> params.CFL;
     fich >> c;
     std::getline(fich, line);
-    fich >> epsilon_h;
+    fich >> params.epsilon_h;
     fich >> c;
     std::getline(fich, line);
-    fich >> R;
+    fich >> params.R;
     fich >> c;
     std::getline(fich, line);
-    fich >> DS;
+    fich >> params.DS;
     fich >> c;
     std::getline(fich, line);
-    fich >> FR;
+    fich >> params.FR;
     fich >> c;
     std::getline(fich, line);
-    fich >> porosity;
+    fich >> params.porosity;
     fich >> c;
     std::getline(fich, line);
-    fich >> OC;
+    fich >> params.OC;
     fich >> c;
     std::getline(fich, line);
-    fich >> Dsg;
+    fich >> params.Dsg;
     fich >> c;
     std::getline(fich, line);
     fich >> input_prefix;
@@ -341,11 +335,22 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
     fich.close();
     
     #if Manning ==0
-    FR/=8.0; //Chezy law
+    params.FR/=8.0; //Chezy law
     #endif
-    HQB=5.0*DS;
-    Q=DS*sqrt(G*(R-1.0)*DS)/(1.0-porosity);
-    Opar=FR/((R-1.0)*G*DS);
+    params.HQB=5.0*params.DS;
+    params.Q=params.DS*sqrt(G*(params.R-1.0)*params.DS)/(1.0-params.porosity);
+    params.Opar=params.FR/((params.R-1.0)*G*params.DS);
+
+    double xmin, ymin, xmax, ymax;
+    double dx, dy;
+    int npx, npy, nvol;
+    xmin = params.xmin;
+    xmax = params.xmax;
+    ymin = params.ymin;
+    ymax = params.ymax;
+    npx = params.npx;
+    npy = params.npy;
+    nvol = params.nvol = npx*npy;
     
     #if Read_files==1
     
@@ -604,6 +609,20 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
     //     printf("Done\n");
     printf("\n");
 
+    params.xmin = xmin;
+    params.xmax = xmax;
+    params.ymin = ymin;
+    params.ymax = ymax;
+    params.npx = npx;
+    params.npy = npy;
+    params.dx = dx;
+    params.dy = dy;
+    params.npx = npx;
+    params.npy = npy;
+    params.nvol = nvol;
+
+
+
     #else  // of Read_files==1
 
     *tCC = NULL;
@@ -620,23 +639,23 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
     xmax+=SPL*dx;
     ymax+=SPL*dy;
 
-    nvol = npx*npy;
+    params.nvol = npx*npy;
 
-    vmax = VMAX;
-    
-    *fixH = new int[nvol]();
-    *dVhu = new double2 [nvol]();
-    *dVh = new double [nvol]();
-    *dVH = new double [nvol]();
+    params.vmax = VMAX;
+    *fixH = new int[params.nvol]();
+    *dVhu = new double2 [params.nvol]();
+    *dVh = new double [params.nvol]();
+    *dVH = new double [params.nvol]();
 
     *time_dyrup = new float[40]; // It assumes range(0,400,10)
-    *dyrup = new double[nvol*40]();
+    *dyrup = new double[params.nvol*40]();
     
     if (*dyrup == NULL) {
         cerr << "Error: Not enough CPU memory" << endl;
         freeMemoryCPU(*dVh,*dVhu,*dVH,*fixH,*CC,*tCC,*dyrup,*time_dyrup);
         return 2;
     }
+
 
     // for (int t=0; t<40; t++) (*time_dyrup)[t] = t*10;
 
@@ -664,6 +683,18 @@ int LoadProblemData(string input_file, string &input_prefix, double **dVh, doubl
 
         }         
     }
+
+    params.xmin = xmin;
+    params.xmax = xmax;
+    params.ymin = ymin;
+    params.ymax = ymax;
+    params.npx = npx;
+    params.npy = npy;
+    params.dx = dx;
+    params.dy = dy;
+    params.npx = npx;
+    params.npy = npy;
+    params.nvol = nvol;
 
 
     #endif

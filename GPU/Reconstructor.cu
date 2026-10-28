@@ -15,14 +15,10 @@
 
 
 
-#ifndef _RECONSTRUYE_KERNEL_H_
-#define _RECONSTRUYE_KERNEL_H_
+#include "GPU_kernels.cuh"
+#include "SedFlux.cuh"
 
-#include <stdio.h>
-#include "Sim_parameters.hxx"
-#include "SedFlux.cu"
-
-__device__ double avg(double a, double b)
+static __device__ inline double avg(double a, double b)
 {
     double d,aa,bb;
     aa=fabs(a);
@@ -36,24 +32,24 @@ __device__ double avg(double a, double b)
     return d;
 }
 
-__device__ double minmod(double a, double b, double c)
-{
-    double d;
-    if ((a>0.0) && (b>0.0) && (c>0.0)) {
-        d=min(a,min(b,c));
-    }
-    else {
-        if ((a<0.0) && (b<0.0) && (c<0.0)) {
-            d=max(a,max(b,c));
-        }
-        else {
-            d=0.0;
-        }
-    }
-    return d;
-}
+// static __device__ inline double minmod(double a, double b, double c)
+// {
+//     double d;
+//     if ((a>0.0) && (b>0.0) && (c>0.0)) {
+//         d=min(a,min(b,c));
+//     }
+//     else {
+//         if ((a<0.0) && (b<0.0) && (c<0.0)) {
+//             d=max(a,max(b,c));
+//         }
+//         else {
+//             d=0.0;
+//         }
+//     }
+//     return d;
+// }
 
-__device__ void friction(double* d_Vk, double* d_V0, int pos, double epsilon_h, double dt) {
+static __device__ inline void friction(double* d_Vk, double* d_V0, int pos, double epsilon_h, double bottom_friction, double dt) {
     
     double h;
     double2 q, u;
@@ -65,10 +61,10 @@ __device__ void friction(double* d_Vk, double* d_V0, int pos, double epsilon_h, 
     u_calculator(h,q,epsilon_h,u);
     double modu = sqrt(u.x*u.x+u.y*u.y);
     
-    double c = dt*d_FR*modu/(h+EPSILON);
+    double c = dt*bottom_friction*modu/(h+EPSILON);
     
 #if Manning ==1
-    c = dt*d_FR*d_FR*modu/(pow(h,4.0/3.0));
+    c = dt*bottom_friction*bottom_friction*modu/(pow(h,4.0/3.0));
     d_Vk[pos+1] *= c;
     d_Vk[pos+2] *= c;
 #else
@@ -79,8 +75,7 @@ __device__ void friction(double* d_Vk, double* d_V0, int pos, double epsilon_h, 
             
 }
 
-/*
-__device__ void erosion_deposition(double* d_Vk, double* d_V0, double d.epsilon_h, double dt, int posr){
+__device__ void erosion_deposition(double* d_Vk, double* d_V0, const SimParams &params, double dt, int pos){
 
     double Fe, Fd, phi;
     double h, c;
@@ -88,99 +83,98 @@ __device__ void erosion_deposition(double* d_Vk, double* d_V0, double d.epsilon_
     double2 q, u;
 
     nu = 1.002e-6; // Water kinematic viscosity
-    double s = sed.R-1; // Diff of relative densities
+    double s = params.R-1; // Diff of relative densities
 
-    h = d_Vh0;
-    q.x = d_Vhu0.x;
-    q.y = d_Vhu0.y;
-    c = d_Vhc0/(h+epsilon_h);
+    h = d_V0[pos];
+    q.x = d_V0[pos+1];
+    q.y = d_V0[pos+2];
+    c = d_V0[pos+4]/(h+params.epsilon_h);
 
 
 
-    calculo_u(h,q,epsilon_h,u);
+    u_calculator(h,q,params.epsilon_h,u);
     double modu = sqrt(u.x*u.x+u.y*u.y);
 
-    vs = sqrt( (13.95*nu/sed.DS)*(13.95*nu/sed.DS) + 1.09 * s * G* sed.DS ) - 13.95*nu/sed.DS  ;
-    Rp = (sed.DS*sqrt(s*G*sed.DS))/nu; // Particle Reynolds number
+    vs = sqrt( (13.95*nu/params.DS)*(13.95*nu/params.DS) + 1.09 * s * G* params.DS ) - 13.95*nu/params.DS  ;
+    Rp = (params.DS*sqrt(s*G*params.DS))/nu; // Particle Reynolds number
 
-    calculate_erosion(u,modu,Rp,vs,sed,Fe);
-    calculate_deposition(c,vs,sed,Fd);
+    calculate_erosion(u,modu,Rp,vs,params,Fe);
+    calculate_deposition(c,vs,params,Fd);
 
-    phi = Fe - Fd;
-
-
-    double aux = Vhc;
-    double aux2 = Vb;
-    Vhc = Vhc + dt*phi;//*(h>0.001);
-    Vb = Vb - dt*phi;//*(h>0.001);
-
-    // printf("%.14f    %.14f \n",aux-Vhc,aux2-Vb);
+    phi = (Fe - Fd) * SUSPENSION;
 
 
-    // if(Fd!=0.0)
-    // printf("%.14f      %.14f  \n",Fe,Vhc/(h+EPSILON));
+    // double aux = Vhc;
+    // double aux2 = Vb;
+    // Vhc = Vhc + dt*phi;//*(h>0.001);
+    // Vb = Vb - dt*phi;//*(h>0.001);
+
+    d_Vk[pos+3] = d_Vk[pos+3] - dt*phi;
+    d_Vk[pos+4] = d_Vk[pos+4] + dt*phi;
 
 
-}*/
+
+}
 
 
 
 
-
-__global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, double* reconsD, double* reconsU, int npx, int npy, double delta_T, double inv_dx, double inv_dy, double epsilon_h, double* d_Vk, double *d_V0) {
+__global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, double* reconsD, double* reconsU, double delta_T, double inv_dx, double inv_dy, SimParams params, double* d_Vk, double *d_V0) {
 
 
     int i,j;
-    int pos, posr;
+    int pos;
 	i = blockIdx.x*NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
 	j = blockIdx.y*NUM_THREADS_VERTICAL_VOL + threadIdx.y;
 
-    if ((i<npx) && (j<npy)) {
-        pos = j*npx + i;
-        posr = pos*5;
+    if ((i<params.npx) && (j<params.npy)) {
+        pos = (j*params.npx + i)*5;
         
 #if order == 1
 
-        // printf("i = %i   %.14f\n",i,d_V[posr+3]);
 
-        reconsL[posr]   = reconsR[posr]   = reconsU[posr]   = reconsD[posr]   = d_V[posr];
-        reconsL[posr+1] = reconsR[posr+1] = reconsU[posr+1] = reconsD[posr+1] = d_V[posr+1];
-        reconsL[posr+2] = reconsR[posr+2] = reconsU[posr+2] = reconsD[posr+2] = d_V[posr+2];
-        reconsL[posr+3] = reconsR[posr+3] = reconsU[posr+3] = reconsD[posr+3] = d_V[posr+3];
-        reconsL[posr+4] = reconsR[posr+4] = reconsU[posr+4] = reconsD[posr+4] = d_V[posr+4];
+        reconsL[pos]   = reconsR[pos]   = reconsU[pos]   = reconsD[pos]   = d_V[pos];
+        reconsL[pos+1] = reconsR[pos+1] = reconsU[pos+1] = reconsD[pos+1] = d_V[pos+1];
+        reconsL[pos+2] = reconsR[pos+2] = reconsU[pos+2] = reconsD[pos+2] = d_V[pos+2];
+        reconsL[pos+3] = reconsR[pos+3] = reconsU[pos+3] = reconsD[pos+3] = d_V[pos+3];
+        reconsL[pos+4] = reconsR[pos+4] = reconsU[pos+4] = reconsD[pos+4] = d_V[pos+4];
 
 
 
         
 #else   
 
-        int posl,posr;
+        int posleft,posright;
         int im,ip,jm,jp;
         double dta,Hl,Hi,Hr;
         double hi,hl,hr;
         double2 ui,ul,ur;
         double dl, dr, du;
+        double ci, cr, cl;
         double deta;
         
         // **********************
         // x direction
         // **********************
 
-        hi=d_dVh[pos];
-        Hi=d_dVH[pos];
-        
+        hi=d_V[pos];
+        Hi=d_V[pos+3];
+        ci=d_V[pos+4]/(hi+EPSILON);
+
         im=i-1*(i>0);
-        ip=i+1*(i<npx-1);
+        ip=i+1*(i<params.npx-1);
 #if WBC==2
-        if(i==0) im = npx-1;
-        if(i==npx-1) ip = 0;
+        if(i==0) im = params.npx-1;
+        if(i==params.npx-1) ip = 0;
 #endif
-        posl=j*npx + im;
-        posr=j*npx + ip;
-        hl=d_dVh[posl];
-        Hl=d_dVH[posl];
-        hr=d_dVh[posr];
-        Hr=d_dVH[posr];
+        posleft=(j*params.npx + im)*5;
+        posright=(j*params.npx + ip)*5;
+        hl=d_V[posleft];
+        Hl=d_V[posleft+3];
+        cl=d_V[posleft+4]/(hl+EPSILON);
+        hr=d_V[posright];
+        Hr=d_V[posright+3];
+        cr=d_V[posright+4]/(hr+EPSILON);
         dta=delta_T*inv_dx;
 
         
@@ -191,8 +185,8 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
         if(0.5*fabs(dh)>hi){
             dh = 2.0*hi*SGN(dh);
         }
-        reconsLh[pos] = hi - 0.5*dh;
-        reconsRh[pos] = hi + 0.5*dh;
+        reconsL[pos] = hi - 0.5*dh;
+        reconsR[pos] = hi + 0.5*dh;
         
         // eta and zb reconstruction
         double zm;
@@ -203,13 +197,13 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
         deta = avg(dl,dr);
         double dz = dh - deta;
         
-        reconsLzb[pos] = Hi - 0.5*dz;
-        reconsRzb[pos] = Hi + 0.5*dz;
+        reconsL[pos+3] = Hi - 0.5*dz;
+        reconsR[pos+3] = Hi + 0.5*dz;
         
         // u reconstruction
-        u_calculator(hi,d_dVhu[pos],epsilon_h,ui);
-        u_calculator(hl,d_dVhu[posl],epsilon_h,ul);
-        u_calculator(hr,d_dVhu[posr],epsilon_h,ur);
+        u_calculator_double(hi,d_V[pos+1],d_V[pos+2], params.epsilon_h,ui);
+        u_calculator_double(hl,d_V[posleft+1],d_V[posleft+2],params.epsilon_h,ul);
+        u_calculator_double(hr,d_V[posright+1],d_V[posright+2],params.epsilon_h,ur);
         dl = ui.x - ul.x;
         dr = ur.x - ui.x;
         du = avg(dl,dr);
@@ -217,8 +211,8 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
 
 
         
-        reconsLhu[pos].x = d_dVhu[pos].x - 0.5*dq;
-        reconsRhu[pos].x = d_dVhu[pos].x + 0.5*dq;
+        reconsL[pos+1] = d_V[pos+1] - 0.5*dq;
+        reconsR[pos+1] = d_V[pos+1] + 0.5*dq;
         
         
         dl = ui.y - ul.y;
@@ -226,12 +220,21 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
         du = avg(dl,dr);
         dq = hi*du + ui.y * dh;
         
-        reconsLhu[pos].y = d_dVhu[pos].y - 0.5*dq;
-        reconsRhu[pos].y = d_dVhu[pos].y + 0.5*dq;
+        reconsL[pos+2] = d_V[pos+2] - 0.5*dq;
+        reconsR[pos+2] = d_V[pos+2] + 0.5*dq;
+
+
+        // hc reconstruction
+        dl = ci - cl;
+        dr = cr - ci;
+        du = avg(dl,dr);
+
+        reconsL[pos+4] = (ci - 0.5*du)*reconsL[pos];
+        reconsR[pos+4] = (ci + 0.5*du)*reconsR[pos];
         
         
         // Integral
-        d_Ahu[pos].x -= dta*G*hi*deta;
+        d_Vk[pos+1] -= dta*G*hi*deta;
         
 #if RK==0
         double Tpx = G*hi*deta;
@@ -243,17 +246,17 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
         
 
         jm=j-1*(j>0);
-        jp=j+1*(j<npy-1);
+        jp=j+1*(j<params.npy-1);
 #if WBC==2
-        if(j==0) jm = npy-1;
-        if(j==npy-1) jp = 0;
+        if(j==0) jm = params.npy-1;
+        if(j==params.npy-1) jp = 0;
 #endif
-        posl=jm*npx +i;
-        posr=jp*npx +i;
-        hl=d_dVh[posl];
-        Hl=d_dVH[posl];
-        hr=d_dVh[posr];
-        Hr=d_dVH[posr];
+        posleft=(jm*params.npx +i)*5;
+        posright=(jp*params.npx +i)*5;
+        hl=d_V[posleft];
+        Hl=d_V[posleft+3];
+        hr=d_V[posright];
+        Hr=d_V[posright+3];
         dta=delta_T*inv_dy;
         
         // h reconstruction
@@ -263,8 +266,8 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
         if(0.5*fabs(dh)>hi){
             dh = 2.0*hi*SGN(dh);
         }
-        reconsDh[pos] = hi - 0.5*dh;
-        reconsUh[pos] = hi + 0.5*dh;
+        reconsD[pos] = hi - 0.5*dh;
+        reconsU[pos] = hi + 0.5*dh;
         
 
         
@@ -276,31 +279,40 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
         deta = avg(dl,dr);
         dz = dh - deta;
         
-        reconsDzb[pos] = Hi - 0.5*dz;
-        reconsUzb[pos] = Hi + 0.5*dz;
+        reconsD[pos+3] = Hi - 0.5*dz;
+        reconsU[pos+3] = Hi + 0.5*dz;
         
 
         // u reconstruction
-        u_calculator(hl,d_dVhu[posl],epsilon_h,ul);
-        u_calculator(hr,d_dVhu[posr],epsilon_h,ur);
+        u_calculator_double(hl,d_V[posleft+1],d_V[posleft+2],params.epsilon_h,ul);
+        u_calculator_double(hr,d_V[posright+1],d_V[posright+2],params.epsilon_h,ur);
         dl = ui.x - ul.x;
         dr = ur.x - ui.x;
         du = avg(dl,dr);
         dq = hi*du + ui.x * dh;
         
-        reconsDhu[pos].x  = d_dVhu[pos].x - 0.5*dq;
-        reconsUhu[pos].x  = d_dVhu[pos].x + 0.5*dq;
+        reconsD[pos+1]  = d_V[pos+1] - 0.5*dq;
+        reconsU[pos+1]  = d_V[pos+1] + 0.5*dq;
         
         dl = ui.y - ul.y;
         dr = ur.y - ui.y;
         du = avg(dl,dr);
         dq = hi*du + ui.y * dh;
         
-        reconsDhu[pos].y  = d_dVhu[pos].y - 0.5*dq;
-        reconsUhu[pos].y  = d_dVhu[pos].y + 0.5*dq;
+        reconsD[pos+2]  = d_V[pos+2] - 0.5*dq;
+        reconsU[pos+2]  = d_V[pos+2] + 0.5*dq;
+
+        // hc reconstruction
+        dl = ci-cl;
+        dr = cr-ci;
+        du = avg(dl,dr);
+
+        reconsD[pos+4] = (ci-0.5*du)*reconsD[pos];
+        reconsU[pos+4] = (ci+0.5*du)*reconsU[pos];
+
         
         // Integral
-        d_Ahu[pos].y -= dta*G*hi*deta;
+        d_Vk[pos+2] -= dta*G*hi*deta;
         
 #if RK==0
         double Tpy = G*hi*deta;
@@ -309,77 +321,83 @@ __global__ void reconstructor(double* d_V, double* reconsL, double* reconsR, dou
                 
 #if RK==0            
         double2 uRR, uL, uU, uD;
-        u_calculator(reconsRh[pos],reconsRhu[pos],epsilon_h,uRR);
-        u_calculator(reconsLh[pos],reconsLhu[pos],epsilon_h,uL);
-        u_calculator(reconsUh[pos],reconsUhu[pos],epsilon_h,uU);
-        u_calculator(reconsDh[pos],reconsDhu[pos],epsilon_h,uD);
+        u_calculator_double(reconsR[pos],reconsR[pos+1],reconsR[pos+2],params.epsilon_h,uRR);
+        u_calculator_double(reconsL[pos],reconsL[pos+1],reconsL[pos+2],params.epsilon_h,uL);
+        u_calculator_double(reconsU[pos],reconsU[pos+1],reconsU[pos+2],params.epsilon_h,uU);
+        u_calculator_double(reconsD[pos],reconsD[pos+1],reconsD[pos+2],params.epsilon_h,uD);
     
         double qhx, qhy;
-        qhx = (reconsRhu[pos].x-reconsLhu[pos].x) *inv_dx;
-        qhy = (reconsUhu[pos].y-reconsDhu[pos].y) *inv_dy;
+        qhx = (reconsR[pos+1]-reconsL[pos+1]) *inv_dx;
+        qhy = (reconsU[pos+2]-reconsD[pos+2]) *inv_dy;
         
         
         // MUSCL-Hancock
-        reconsLh[pos] -= 0.5 * delta_T * (qhx + qhy);
-        reconsRh[pos] -= 0.5 * delta_T * (qhx + qhy);
-        reconsDh[pos] -= 0.5 * delta_T * (qhx + qhy);
-        reconsUh[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsL[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsR[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsD[pos] -= 0.5 * delta_T * (qhx + qhy);
+        reconsU[pos] -= 0.5 * delta_T * (qhx + qhy);
         
 
-        qhx = (reconsRhu[pos].x*uRR.x-reconsLhu[pos].x*uL.x)*inv_dx;
-        qhy = (reconsUhu[pos].x*uU.y-reconsDhu[pos].x*uD.y)*inv_dy;
-        reconsLhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
-        reconsRhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
-        reconsDhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
-        reconsUhu[pos].x -= 0.5 * delta_T * (qhx + qhy);
+        qhx = (reconsR[pos+1]*uRR.x-reconsL[pos+1]*uL.x)*inv_dx;
+        qhy = (reconsU[pos+1]*uU.y-reconsD[pos+1]*uD.y)*inv_dy;
+        reconsL[pos+1] -= 0.5 * delta_T * (qhx + qhy);
+        reconsR[pos+1] -= 0.5 * delta_T * (qhx + qhy);
+        reconsD[pos+1] -= 0.5 * delta_T * (qhx + qhy);
+        reconsU[pos+1] -= 0.5 * delta_T * (qhx + qhy);
         
 
-        qhx = (reconsRhu[pos].x*uRR.y - reconsLhu[pos].x*uL.y) *inv_dx;
-        qhy = (reconsUhu[pos].y*uU.y - reconsDhu[pos].y*uD.y) *inv_dy;
-        reconsLhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
-        reconsRhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
-        reconsDhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
-        reconsUhu[pos].y -= 0.5 * delta_T * (qhx + qhy);
+        qhx = (reconsR[pos+1]*uRR.y - reconsL[pos+1]*uL.y) *inv_dx;
+        qhy = (reconsU[pos+2]*uU.y - reconsD[pos+2]*uD.y) *inv_dy;
+        reconsL[pos+2] -= 0.5 * delta_T * (qhx + qhy);
+        reconsR[pos+2] -= 0.5 * delta_T * (qhx + qhy);
+        reconsD[pos+2] -= 0.5 * delta_T * (qhx + qhy);
+        reconsU[pos+2] -= 0.5 * delta_T * (qhx + qhy);
+        
+
+        qhx = (bedload(reconsR[pos],uRR,0,params)-bedload(reconsL[pos],uL,0,params))*inv_dx;
+        qhy = (bedload(reconsU[pos],uU,0,params)-bedload(reconsD[pos],uD,0,params))*inv_dy;
+        reconsL[pos+3] -= 0.5 * delta_T * (qhx + qhy);
+        reconsR[pos+3] -= 0.5 * delta_T * (qhx + qhy);
+        reconsD[pos+3] -= 0.5 * delta_T * (qhx + qhy);
+        reconsU[pos+3] -= 0.5 * delta_T * (qhx + qhy);
+
+
+        qhx = reconsR[pos+4]*uRR.x - reconsL[pos+4]*uL.x;
+        qhy = reconsU[pos+4]*uU.y - reconsD[pos+4]*uD.y;
+        reconsL[pos+4] -= 0.5 * delta_T * (qhx + qhy);
+        reconsR[pos+4] -= 0.5 * delta_T * (qhx + qhy);
+        reconsD[pos+4] -= 0.5 * delta_T * (qhx + qhy);
+        reconsU[pos+4] -= 0.5 * delta_T * (qhx + qhy);
         
         
-        qhx = (bedload(reconsRh[pos],uRR)-bedload(reconsLh[pos],uL))*inv_dx;
-        qhy = (bedload(reconsUh[pos],uU)-bedload(reconsDh[pos],uD))*inv_dy;
-        reconsLzb[pos] -= 0.5 * delta_T * (qhx + qhy);
-        reconsRzb[pos] -= 0.5 * delta_T * (qhx + qhy);
-        reconsDzb[pos] -= 0.5 * delta_T * (qhx + qhy);
-        reconsUzb[pos] -= 0.5 * delta_T * (qhx + qhy);
         
+        reconsL[pos+1] -= 0.5 * delta_T*inv_dx * Tpx;
+        reconsU[pos+1] -= 0.5 * delta_T*inv_dx * Tpx;
+        reconsD[pos+1] -= 0.5 * delta_T*inv_dx * Tpx;
+        reconsR[pos+1] -= 0.5 * delta_T*inv_dx * Tpx;
         
-        
-        reconsLhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
-        reconsUhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
-        reconsDhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
-        reconsRhu[pos].x -= 0.5 * delta_T*inv_dx * Tpx;
-        
-        reconsLhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
-        reconsUhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
-        reconsDhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
-        reconsRhu[pos].y -= 0.5 * delta_T*inv_dy * Tpy;
+        reconsL[pos+2] -= 0.5 * delta_T*inv_dy * Tpy;
+        reconsU[pos+2] -= 0.5 * delta_T*inv_dy * Tpy;
+        reconsD[pos+2] -= 0.5 * delta_T*inv_dy * Tpy;
+        reconsR[pos+2] -= 0.5 * delta_T*inv_dy * Tpy;
 
 #endif   
         
         
         // Filters
-        state_filter(reconsLh[pos],reconsLhu[pos],epsilon_h);
-        state_filter(reconsRh[pos],reconsRhu[pos],epsilon_h);
-        state_filter(reconsUh[pos],reconsUhu[pos],epsilon_h);
-        state_filter(reconsDh[pos],reconsDhu[pos],epsilon_h);
+        state_filter_double(reconsL[pos],reconsL[pos+1],reconsL[pos+2],reconsL[pos+4],params.epsilon_h);
+        state_filter_double(reconsR[pos],reconsR[pos+1],reconsR[pos+2],reconsR[pos+4],params.epsilon_h);
+        state_filter_double(reconsU[pos],reconsU[pos+1],reconsU[pos+2],reconsU[pos+4],params.epsilon_h);
+        state_filter_double(reconsD[pos],reconsD[pos+1],reconsD[pos+2],reconsD[pos+4],params.epsilon_h);
         
         
 #endif
         
         
         // Frictions
-        friction(d_Vk, d_V0, posr, epsilon_h, delta_T);
-        // erosion_deposition(d_Vk, d_V0, d.epsilon_h, d.delta_T, posr);
+        friction(d_Vk, d_V0, pos, params.epsilon_h, params.FR, delta_T);
+        erosion_deposition(d_Vk, d_V0, params, delta_T, pos);
 
     }
 
 }
-
-#endif

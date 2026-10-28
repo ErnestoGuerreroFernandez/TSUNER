@@ -15,7 +15,7 @@
 
 
 
-#include <stdio.h>
+#include "../TSUNER.h"
 
 // This fuction returns 0 if the GPU supports CUDA, 1 if there is no GPU and 2 if there is, but it doeesn't support CUDA.
 extern "C" int checkCUDAsupport(int cudaDevice)

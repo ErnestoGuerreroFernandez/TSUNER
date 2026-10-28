@@ -10,8 +10,7 @@
  */
 
 // Helper Timing Functions
-#ifndef HELPER_TIMER_H
-#define HELPER_TIMER_H
+#pragma once
 
 #ifndef EXIT_WAIVED
 #define EXIT_WAIVED 2
@@ -496,4 +495,3 @@ sdkGetTimerValue(StopWatchInterface **timer_interface)
     }
 }
 
-#endif // HELPER_TIMER_H

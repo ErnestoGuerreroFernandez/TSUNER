@@ -15,14 +15,9 @@
 
 
 
-#ifndef _NETCDF_H_
-#define _NETCDF_H_
 
-#include <sys/time.h>
-#include <time.h>
-#include <stdio.h>
-#include <netcdf.h>
-#include "Sim_parameters.hxx"
+
+#include "GPU_kernels.cuh"
 
 bool ErrorEnNetCDF;
 int ncid;
@@ -33,6 +28,7 @@ int hmax_id;
 int zb_id;
 int bmin_id;
 int eta_max_id;
+int c_id;
 
 void check_err(int iret)
 {
@@ -43,7 +39,7 @@ void check_err(int iret)
 }
 
 
-void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, double* ygrid, char *input_prefix, int *p_ncid, int *time_id, int& eta_id, int *vel_id, int npx, int npy, double total_time, double *bati, double R, double DS, double FR, double porosity, double OC)
+void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, double* ygrid, char *input_prefix, int *p_ncid, int *time_id, int& eta_id, int *vel_id, int npx, int npy, double total_time, double *bati, double R, double DS, double FR, double porosity, double OC, double Dsg)
 {
 	char file_name[256];
 	char cadena[256];
@@ -126,6 +122,18 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
     check_err(iret);
     iret = nc_put_att_text(ncid, vel_id[1], "long_name", 10, "y-velocity");
     check_err(iret);
+
+	iret = nc_def_var(ncid, "c", NC_DOUBLE, 3, var_dims, &c_id);
+	check_err(iret);
+	iret = nc_put_att_text(ncid, c_id, "units", 12, "adimensional");
+	check_err(iret);
+	iret = nc_put_att_text(ncid, c_id, "long_name", 33, "Volumetric Sediment Concentration");
+	check_err(iret);
+	iret = nc_put_att_double(ncid, c_id, "missing_value", NC_DOUBLE, 1, &fill_double);
+	check_err(iret);
+	iret = nc_put_att_double(ncid, c_id, "_FillValue", NC_DOUBLE, 1, &fill_double);
+	check_err(iret);
+
     
             
    
@@ -232,6 +240,9 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	val_double = OC;
 	iret = nc_put_att_double(ncid, NC_GLOBAL, "Sediment_critical_theta", NC_DOUBLE, 1, &val_double);
 	check_err(iret);
+	val_double = Dsg;
+	iret = nc_put_att_double(ncid, NC_GLOBAL, "Geometric_mean_size_of_suspended_sediment", NC_DOUBLE, 1, &val_double);
+	check_err(iret);
 
 
 	val_double = total_time;
@@ -256,19 +267,25 @@ void fgennc(double xmin, double xmax, double ymin, double ymax, double* xgrid, d
 	
 }
 
-int initNC(char *input_prefix, int npx,int npy, double xmin, double xmax, double ymin, double ymax, double total_time,  double *bati, double R, double DS, double FR, double porosity, double OC)
+int initNC(char *input_prefix, double *bati, SimParams params)
 {
 	double *xgrid, *ygrid;
-    double dx,dy;
+    double dx,dy,xmin,xmax,ymin,ymax;
+    int npx,npy;
 	int i;
+	dx = params.dx;
+	dy = params.dy;
+	xmin = params.xmin;
+	xmax = params.xmax;
+	ymax = params.ymax;
+	ymin = params.ymin;
+	npx = params.npx;
+	npy = params.npy;
 
 	ErrorEnNetCDF = false;
     xgrid = new double [npx-SPL*2]();
     ygrid = new double [npy-SPL*2]();
-	if (ygrid == NULL) {
-		free(xgrid);
-		return 1;
-	}
+
     dx=(xmax-xmin)/npx;
     dy=(ymax-ymin)/npy;
     
@@ -285,7 +302,7 @@ int initNC(char *input_prefix, int npx,int npy, double xmin, double xmax, double
 	for (i=0; i<npy; i++)
 		ygrid[i] = ymin+(i+0.5)*dy;
 
-	fgennc(xmin, xmax, ymin, ymax, xgrid, ygrid, input_prefix, &ncid, &timef, eta_id, vel_id,npx, npy, total_time, bati, R, DS, FR, porosity, OC);
+	fgennc(xmin, xmax, ymin, ymax, xgrid, ygrid, input_prefix, &ncid, &timef, eta_id, vel_id,npx, npy, params.total_time, bati, params.R, params.DS, params.FR, params.porosity, params.OC, params.Dsg);
 
 	
     delete [] xgrid;
@@ -293,35 +310,30 @@ int initNC(char *input_prefix, int npx,int npy, double xmin, double xmax, double
 
 	return 0;
 }
-/*
 
-void writerecs(int npx, int npy, int ncid, int time_id, int var_id, int paso, double current_time, double *var)
+void writeCNC(int npx, int npy, int numt, double *var)
 {
 	int iret;
-	double t_act = current_time;
-	const size_t num = paso;
-	const size_t uno = 1;
+	const size_t num = numt;
 	const size_t var_start[3] = {num, 0, 0};
-	const size_t var_count[3] = {1, npy, npx};
+	const size_t var_count[3] = {1, static_cast<size_t>(npy), static_cast<size_t>(npx)};
 
-	// Guardamos el tiempo
-	iret = nc_put_vara_double(ncid, time_id, &num, &uno, &t_act);
-	check_err(iret);
-
-	// Guardamos la variable var
-	iret = nc_put_vara_double(ncid, var_id, var_start, var_count, var);
+	iret = nc_put_vara_double(ncid, c_id, var_start, var_count, var);
 	check_err(iret);
 
 	iret = nc_sync(ncid);
 	check_err(iret);
 }
-*/
-void writeEtaNC(long unsigned int npx, long unsigned int npy, int numt, double current_time, double *eta)
+
+
+
+
+void writeEtaNC(int npx, int npy, int numt, double current_time, double *eta)
 {
     int iret;
     const size_t num = numt;
     const size_t var_start[3] = {num, 0, 0};
-    const size_t var_count[3] = {1, npy, npx};
+    const size_t var_count[3] = {1, static_cast<size_t>(npy), static_cast<size_t>(npx)};
 
     // We save var variable
 	iret = nc_put_vara_double(ncid, eta_id, var_start, var_count, eta);
@@ -333,7 +345,7 @@ void writeEtaNC(long unsigned int npx, long unsigned int npy, int numt, double c
 
 
 
-void write_time(long unsigned int npx, long unsigned int npy, int numt, double current_time)
+void write_time(int npx, int npy, int numt, double current_time)
 {
     int iret;
 	double t_act = current_time;
@@ -345,12 +357,12 @@ void write_time(long unsigned int npx, long unsigned int npy, int numt, double c
 	check_err(iret);
 }
 
-void writevelNC(long unsigned int npx, long unsigned int npy, int numt, int componente, double *var)
+void writevelNC(int npx, int npy, int numt, int componente, double *var)
 {
     int iret;
 	const size_t num = numt;
     const size_t var_start[3] = {num, 0, 0};
-    const size_t var_count[3] = {1, npy, npx};
+    const size_t var_count[3] = {1, static_cast<size_t>(npy), static_cast<size_t>(npx)};
     
 	
     iret = nc_put_vara_double(ncid, vel_id[componente], var_start, var_count, var);
@@ -360,12 +372,12 @@ void writevelNC(long unsigned int npx, long unsigned int npy, int numt, int comp
 	check_err(iret);
 }
 
-void writeHNC(long unsigned int npx, long unsigned int npy, int numt, double *var)
+void writeHNC(int npx, int npy, int numt, double *var)
 {
     int iret;
 	const size_t num = numt;
     const size_t var_start[3] = {num, 0, 0};
-    const size_t var_count[3] = {1, npy, npx};
+    const size_t var_count[3] = {1, static_cast<size_t>(npy), static_cast<size_t>(npx)};
     
 	
     iret = nc_put_vara_double(ncid, zb_id, var_start, var_count, var);
@@ -398,4 +410,79 @@ void closeNC()
 	check_err(iret);
 }
 
-#endif
+
+void saveNetCDF(double *V, double *vec, int num, int npx, int npy, int nvol, double current_time)
+{
+    double sim_time = current_time;
+    double aux;
+    double hn;
+    int i, j, pos;
+
+    int posv=0;
+
+    write_time(npx, npy, num, sim_time);
+
+
+    for (j=SPL; j<npy-SPL; j++) {
+        for (i=SPL; i<npx-SPL; i++) {
+            pos = (j*npx+i)*5;
+            hn = V[pos] - V[pos + 3];
+            vec[posv] = hn;
+            posv++;
+        }
+    }
+
+    writeEtaNC(npx-2*SPL, npy-2*SPL, num, sim_time,vec);
+
+
+    // u1x
+    posv=0;
+    for (j=SPL; j<npy-SPL; j++) {
+        for (i=SPL; i<npx-SPL; i++){
+            pos = (j*npx+i)*5;
+            aux=(V[pos + 1])/(V[pos]+EPSILON);
+            vec[posv] = aux;
+            posv++;
+        }
+    }
+    writevelNC(npx-2*SPL, npy-2*SPL, num,0, vec);
+
+    // u1y
+    posv=0;
+    for (j=SPL; j<npy-SPL; j++) {
+        for (i=SPL; i<npx-SPL; i++) {
+            pos = (j*npx+i)*5;
+            aux=(V[pos + 2])/(V[pos]+EPSILON);
+            vec[posv] = aux;
+            posv++;
+        }
+    }
+    writevelNC(npx-2*SPL,npy-2*SPL,num,1,vec);
+
+    // H
+    posv=0;
+    for (j=SPL; j<npy-SPL; j++) {
+        for (i=SPL; i<npx-SPL; i++) {
+            pos = (j*npx+i)*5;
+            aux=(V[pos + 3]);
+            vec[posv] = -aux;
+            posv++;
+        }
+    }
+    writeHNC(npx-2*SPL,npy-2*SPL,num,vec);
+
+	// c
+	posv=0;
+	for (j=SPL; j<npy-SPL; j++) {
+		for (i=SPL; i<npx-SPL; i++) {
+			pos = (j*npx+i)*5;
+			vec[posv] = V[pos+4] / (V[pos] + EPSILON);
+			posv++;
+		}
+	}
+	writeCNC(npx-2*SPL, npy-2*SPL, num, vec);
+
+}
+
+
+

@@ -15,12 +15,9 @@
 
 
 
-#ifndef _cini_c_
-#define _cini_c_
 
-#include "Sim_parameters.hxx"
-#include <sys/stat.h>
-#include <fstream>
+#include "TSUNER.h"
+
 
 double bathy(double x, double y) {  // Initial bathymetry function, H.
     double H;
@@ -34,7 +31,7 @@ double bathy(double x, double y) {  // Initial bathymetry function, H.
 }
 
 
-double initial_h (double x, double y, double zb=0.0) {  // Initial water depth, h.
+double initial_h (double x, double y) {  // Initial water depth, h.
     double h1;
 
     h1= bathy(x,y) +2.0 + 6*exp(-5.0* ((x+2)*(x+2)   +    (y-0)*(y-0)));
@@ -63,5 +60,5 @@ int fixed_bed_CI(double x, double y){  // Set if the bathymetry moves (1) or not
     
 }
 
-#endif
+
 

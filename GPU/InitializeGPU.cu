@@ -15,8 +15,7 @@
 
 
 
-#ifndef _INICIALIZAR_GPU_H_
-#define _INICIALIZAR_GPU_H_
+#include "../TSUNER.h"
 
 // Function that launch the GPU to avoid initial overhead. It launchs a kernel that does nothing
 __global__ void ejecutarKernelNuloGPU() {}
@@ -27,4 +26,3 @@ extern "C" void initializeGPU() {
 	ejecutarKernelNuloGPU<<<blockGrid, threadBlock>>>();
 }
 
-#endif

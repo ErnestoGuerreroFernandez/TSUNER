@@ -15,30 +15,17 @@
 
 
 
-#include <string.h>
-#include "Sim_parameters.hxx"
-#include "Problem_loader.cxx"
 
-/*****************/
-/* Funciones GPU */
-/*****************/
+#include "TSUNER.h"
 
-extern "C" int checkCUDAsupport(int cudaDevice);
-extern "C" void initializeGPU();
-
-extern "C" int TSUNER(double *dVh, double2 *dVhu, double *dVH, int *fixH, double xmin, double xmax, double ymin, double ymax, int npx, int npy, int nvol, double dx, double dy, char *input_prefix,  double total_time, double save_time, double CFL, double Q, double DS, double FR, double Opar, double OC, double Dsg, double HQB, double vmax, double epsilon_h, double* d, double *CC, double *tCC, long unsigned int timeCC, double *dyrup, float *time_dyrup, double &tiempo, int CudaDevice, double *tides_bd, float *tides_time, int tidesNPT);
-
-/*********************/
-/* Fin funciones GPU */
-/*********************/
 
 int main(int argc, char *argv[])
 {
     double2 *dVhu;  // hux huy
     double *dVh;  // h
     double* dVH; //batimetria
-    double *CC;
-    double *tCC;  // Boundary conditions.
+    double *CC;  // Boundary conditions
+    double *tCC;  // Boundary conditions time
     int *fixH; // Fixed bathymetry
     double *dyrup; // Dynamic rupture
     float *time_dyrup; // time of dynamic rupture
@@ -48,18 +35,10 @@ int main(int argc, char *argv[])
     int tidesNPT;
     int CUDAsupport, err;
     int cudaDevice;
-    int npx, npy, nvol;
-    double total_time, save_time;
-    double dx,dy;
-    double CFL;
-    double vmax;  // Los tg son parametros para la friccion de Coulomb. Se pueden sustituir por parametros para la friccion de Manning.
-    double xmin, xmax, ymin, ymax;
-    double epsilon_h;
+    SimParams params = {};
     string input_file;
     string input_prefix;      // Prefijo de los ficheros NetCDF
     double time_gpu;
-    double OC, Opar, Q, HQB, DS, FR, Dsg;
-    //     int SPL = 5;
 
     // Fichero de datos
     input_file = argv[1];
@@ -92,13 +71,12 @@ int main(int argc, char *argv[])
     }
     initializeGPU();
 
-    err = LoadProblemData(input_file, input_prefix, &dVh, &dVhu, &dVH, &CC, &tCC, &fixH, &dyrup, &time_dyrup, timeCC, xmin, xmax, ymin, ymax, npx, npy,nvol, dx, dy, total_time, save_time, CFL, Q, DS, FR, Opar, OC, Dsg, HQB, vmax, epsilon_h, &tides_bd, &tides_time, tidesNPT);
+    err = LoadProblemData(input_file, input_prefix, &dVh, &dVhu, &dVH, &CC, &tCC, &fixH, &dyrup, &time_dyrup, timeCC, params, &tides_bd, &tides_time, tidesNPT);
     if (err > 0)
         return EXIT_FAILURE;
     cout << scientific;
-    
     // Sponge layer dumping function and values at the boundary
-    double *d;
+    double *d=nullptr;
     #if SPL>0
     d = new double [SPL]();
     for (int i=0; i<SPL; i++){
@@ -107,8 +85,9 @@ int main(int argc, char *argv[])
     }
     #endif
 
+printf("%i\n",params.nvol);
 
-    err = TSUNER(dVh, dVhu, dVH, fixH, xmin, xmax, ymin, ymax, npx, npy, nvol, dx, dy, (char *) input_prefix.c_str(), total_time, save_time, CFL, Q,DS,FR,Opar, OC, Dsg, HQB, vmax, epsilon_h, d, CC, tCC, timeCC, dyrup, time_dyrup, time_gpu,cudaDevice, tides_bd, tides_time, tidesNPT);
+    err = TSUNER(dVh, dVhu, dVH, fixH, params, (char *) input_prefix.c_str(), d, CC, tCC, timeCC, dyrup, time_dyrup, time_gpu, cudaDevice, tides_bd, tides_time, tidesNPT);
     if (err > 0) {
         if (err == 1)
             cerr << "Error: Not enough GPU memory" << endl;
