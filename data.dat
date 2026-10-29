@@ -10,7 +10,7 @@
 # Total simulation time
 7200
 # Save time every
-60
+20
 # npx
 100
 # npy

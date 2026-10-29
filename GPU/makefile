@@ -8,7 +8,6 @@ export NVCC      = $(CUDA_PATH)/bin/nvcc
 export INC       = -I./ -I../ -I/share/apps/NETCDF_C/include/
 export LIB       = -L$(CUDA_PATH)/lib64
 export NVCCFLAGS = -O2 -arch=$(ARCH) -fmad=false -rdc=true -dlto -MMD -MP
-export NVCCFLAGS += -Xptxas -v
 
 # Directory for auxiliary GPU build files
 OBJ_DIR := obj

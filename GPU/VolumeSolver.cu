@@ -13,40 +13,31 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
 #include "GPU_kernels.cuh"
 #include "SedFlux.cuh"
 
+static __device__ __forceinline__ void RiemannSolver_Vols(double hhl, double zb0, double2 qql, double hcl, double hhr, double zb1, double2 qqr, double hcr, int pos0, int pos1, const SimParams &params, double *FL, double *FR, int normal_x, int normal_y, int fixed_sediment) {
 
-__device__ void RiemannSolver_Vols(double hhl, double zb0, double2 qql, double hcl, double hhr, double zb1, double2 qqr, double hcr, int pos0, int pos1, const SimParams &params, double *FL, double *FR, int normal_x, int normal_y, int fixed_sediment){
-
-    double2 q0,q1;
+    double2 q0, q1;
     double2 ql, qr;
-    double2 u0,u1;
+    double2 u0, u1;
     double h0, h1;
     double c0, c1, hc0, hc1;
 
+    // x = normal, y = tangential
+    ql.x = qql.x * normal_x + qql.y * normal_y;
+    ql.y = qql.y * normal_x - qql.x * normal_y;
+    qr.x = qqr.x * normal_x + qqr.y * normal_y;
+    qr.y = qqr.y * normal_x - qqr.x * normal_y;
+    u_calculator(hhl, ql, params.epsilon_h, u0);
+    u_calculator(hhr, qr, params.epsilon_h, u1);
+    c0 = hcl / (hhl + EPSILON);
+    c1 = hcr / (hhr + EPSILON);
 
-
-    // x = normal, y = tangencial
-    ql.x = qql.x*normal_x+qql.y*normal_y;
-    ql.y = qql.y*normal_x-qql.x*normal_y;
-
-    qr.x = qqr.x*normal_x+qqr.y*normal_y;
-    qr.y = qqr.y*normal_x-qqr.x*normal_y;
-
-    u_calculator(hhl,ql,params.epsilon_h,u0);
-    u_calculator(hhr,qr,params.epsilon_h,u1);
-
-    c0 = hcl/(hhl+EPSILON);
-    c1 = hcr/(hhr+EPSILON);
-
-    // Hidrostatic Reconstruction
-    double zmH = min(zb0,zb1);
-    h0 = max(hhl-zb0+zmH,0.0);
-    h1 = max(hhr-zb1+zmH,0.0);
+    // Hydrostatic Reconstruction
+    double zmH = min(zb0, zb1);
+    h0 = max(hhl - zb0 + zmH, 0.0);
+    h1 = max(hhr - zb1 + zmH, 0.0);
 
     q0.x = u0.x * h0;
     q0.y = u0.y * h0;
@@ -54,179 +45,161 @@ __device__ void RiemannSolver_Vols(double hhl, double zb0, double2 qql, double h
     q1.x = u1.x * h1;
     q1.y = u1.y * h1;
 
-    hc0 = h0*c0;
-    hc1 = h1*c1;
+    hc0 = h0 * c0;
+    hc1 = h1 * c1;
 
-    double deta = h1-h0;
+    double deta = h1 - h0;
 
     double F0[5], F1[5];
     F0[0] = F0[1] = F0[2] = F0[3] = F0[4] = 0.0;
     F1[0] = F1[1] = F1[2] = F1[3] = F1[4] = 0.0;
-    Cflux(h0,u0,hc0,F0,fixed_sediment, zb1-zb0, params);   // Note: Since the reference used is with H under the reference, we are actually solving the system dt(H) - dx(qb) (see article Castro-Fernandez-Ferreiro). So, we put a -1 in the sediment flux
-    Cflux(h1,u1,hc1,F1,fixed_sediment, zb1-zb0, params);
+    Cflux(h0, u0, hc0, F0, fixed_sediment, zb1 - zb0, params);
+    Cflux(h1, u1, hc1, F1, fixed_sediment, zb1 - zb0, params);
 
     double hm, zm; // Roe average
     double2 um;
-    roe_average(h0,u0,zb0,h1,u1,zb1,hm,um,zm);
+    roe_average(h0, u0, zb0, h1, u1, zb1, hm, um, zm);
 
     double eigenvalues[3], SL, SR;
 
-    calc_eigen_aprox0(h0,u0,eigenvalues);
+    calc_eigen_aprox0(h0, u0, eigenvalues);
     SL = eigenvalues[0];
 
-    calc_eigen_aprox0(h1,u1,eigenvalues);
+    calc_eigen_aprox0(h1, u1, eigenvalues);
     SR = eigenvalues[2];
 
-    calc_eigen_aprox0(hm,um,eigenvalues);
-    SL=min(SL,eigenvalues[0]);
-    SR=max(SR,eigenvalues[2]);
+    calc_eigen_aprox0(hm, um, eigenvalues);
+    SL = min(SL, eigenvalues[0]);
+    SR = max(SR, eigenvalues[2]);
 
     double a0, a1;
-    if (SR-SL>EPSILON) {
-        a0=(SR*fabs(SL)-SL*fabs(SR))/(SR-SL);
-        a1=(fabs(SR)-fabs(SL))/(SR-SL);
+    if (SR - SL > EPSILON) {
+        a0 = (SR * fabs(SL) - SL * fabs(SR)) / (SR - SL);
+        a1 = (fabs(SR) - fabs(SL)) / (SR - SL);
     }
     else {
-        a0=max(fabs(SL),fabs(SR));
-        a1=0.;
+        a0 = max(fabs(SL), fabs(SR));
+        a1 = 0.0;
     }
 
-
     double df[5], vis[5], DU[5];
-    double s0,s1,s2;
+    double s0, s1, s2;
 
-    for (int i=0; i<5; i++){
+    for (int i = 0; i < 5; i++) {
         df[i] = F1[i] - F0[i];
     }
 
-    df[1] += G*hm*deta  ;
+    df[1] += G * hm * deta;
 
-    DU[0] = h1-h0;
-    DU[1] = q1.x-q0.x;
-    DU[2] = q1.y-q0.y;
-    DU[3] = zb1-zb0;
-    DU[4] = hc1-hc0;
+    DU[0] = h1 - h0;
+    DU[1] = q1.x - q0.x;
+    DU[2] = q1.y - q0.y;
+    DU[3] = zb1 - zb0;
+    DU[4] = hc1 - hc0;
 
-    s0 = SGN(zb1-zb0);
+    s0 = SGN(zb1 - zb0);
     s1 = SGN(df[3]);
     s2 = SGN(a1);
 
-    if (fabs(s0)>EPSILON){
-        s1=s1/s0;
+    if (fabs(s0) > EPSILON) {
+        s1 = s1 / s0;
     }
-    else{
-        s1=0.0;
-    }
-
-    for (int i=0;i<5;i++){
-        vis[i] = a0*DU[i] + a1*df[i];
+    else {
+        s1 = 0.0;
     }
 
-    if(s2==s1){
-        vis[3] = a1*df[3];
-    }
-    else{
-        vis[3] = -a1*df[3];
+    for (int i = 0; i < 5; i++) {
+        vis[i] = a0 * DU[i] + a1 * df[i];
     }
 
+    if (s2 == s1) {
+        vis[3] = a1 * df[3];
+    }
+    else {
+        vis[3] = -a1 * df[3];
+    }
 
     double Dm[5], Dp[5];
-    // Dm[0] = Dm[1] = Dm[2] = Dm[3] = 0.0;
-    // Dp[0] = Dp[1] = Dp[2] = Dp[3] = 0.0;
-    for (int i=0; i<5; i++){
-        Dm[i] = 0.5*(df[i]-vis[i]) + F0[i]  ;
-        Dp[i] = 0.5*(df[i]+vis[i]) - F1[i]  ;
+    for (int i = 0; i < 5; i++) {
+        Dm[i] = 0.5 * (df[i] - vis[i]) + F0[i];
+        Dp[i] = 0.5 * (df[i] + vis[i]) - F1[i];
     }
+    int nvol = params.nvol;
+#if WBC == 2
+    FR[pos0]            = Dm[0];
+    FR[1 * nvol + pos0] = (normal_x * Dm[1] - normal_y * Dm[2]);
+    FR[2 * nvol + pos0] = (normal_y * Dm[1] + normal_x * Dm[2]);
+    FR[3 * nvol + pos0] = Dm[3];
+    FR[4 * nvol + pos0] = Dm[4];
 
-
-
-
-#if WBC==2
-    FR[pos0]   = Dm[0];
-    FR[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
-    FR[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
-    FR[pos0+3] = Dm[3];
-    FR[pos0+4] = Dm[4];
-
-    FL[pos1]   = Dp[0];
-    FL[pos1+1] = (normal_x*Dp[1]-normal_y*Dp[2]);
-    FL[pos1+2] = (normal_y*Dp[1]+normal_x*Dp[2]);
-    FL[pos1+3] = Dp[3];
-    FL[pos1+4] = Dp[4];
+    FL[pos1]            = Dp[0];
+    FL[1 * nvol + pos1] = (normal_x * Dp[1] - normal_y * Dp[2]);
+    FL[2 * nvol + pos1] = (normal_y * Dp[1] + normal_x * Dp[2]);
+    FL[3 * nvol + pos1] = Dp[3];
+    FL[4 * nvol + pos1] = Dp[4];
 #else
-    if (pos1>0){
-        FR[pos0]   = Dm[0];
-        FR[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
-        FR[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
-        FR[pos0+3] = Dm[3];
-        FR[pos0+4] = Dm[4];
+    if (pos1 >= 0) {
+        FR[pos0]            = Dm[0];
+        FR[1 * nvol + pos0] = (normal_x * Dm[1] - normal_y * Dm[2]);
+        FR[2 * nvol + pos0] = (normal_y * Dm[1] + normal_x * Dm[2]);
+        FR[3 * nvol + pos0] = Dm[3];
+        FR[4 * nvol + pos0] = Dm[4];
 
-        FL[pos1]   = Dp[0];
-        FL[pos1+1] = (normal_x*Dp[1]-normal_y*Dp[2]);
-        FL[pos1+2] = (normal_y*Dp[1]+normal_x*Dp[2]);
-        FL[pos1+3] = Dp[3];
-        FL[pos1+4] = Dp[4];
+        FL[pos1]            = Dp[0];
+        FL[1 * nvol + pos1] = (normal_x * Dp[1] - normal_y * Dp[2]);
+        FL[2 * nvol + pos1] = (normal_y * Dp[1] + normal_x * Dp[2]);
+        FL[3 * nvol + pos1] = Dp[3];
+        FL[4 * nvol + pos1] = Dp[4];
     }
-    else{
-        if(pos1==-1){
-            FL[pos0]   = Dm[0];
-            FL[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
-            FL[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
-            FL[pos0+3] = Dm[3];
-            FL[pos0+4] = Dm[4];
+    else {
+        if (pos1 == -1) {
+            FL[pos0]            = Dm[0];
+            FL[1 * nvol + pos0] = (normal_x * Dm[1] - normal_y * Dm[2]);
+            FL[2 * nvol + pos0] = (normal_y * Dm[1] + normal_x * Dm[2]);
+            FL[3 * nvol + pos0] = Dm[3];
+            FL[4 * nvol + pos0] = Dm[4];
         }
-        else{
-            FR[pos0]   = Dm[0];
-            FR[pos0+1] = (normal_x*Dm[1]-normal_y*Dm[2]);
-            FR[pos0+2] = (normal_y*Dm[1]+normal_x*Dm[2]);
-            FR[pos0+3] = Dm[3];
-            FR[pos0+4] = Dm[4];
+        else {
+            FR[pos0]            = Dm[0];
+            FR[1 * nvol + pos0] = (normal_x * Dm[1] - normal_y * Dm[2]);
+            FR[2 * nvol + pos0] = (normal_y * Dm[1] + normal_x * Dm[2]);
+            FR[3 * nvol + pos0] = Dm[3];
+            FR[4 * nvol + pos0] = Dm[4];
         }
-
     }
-
 #endif
-
-
-
 }
+static __device__ inline __attribute__((unused)) void interpolate_time(double *CC, double *tCC, long unsigned int timeCC, double current_time, double &h1, double &zb1, double2 &q1, double &hc1, int npx, int npy, int pos, double *tidesBd, float *tidesT, int tidesNPT) {
 
+    double dt = tCC[1] - tCC[0];
 
-static __device__ inline void interpolate_time(double *CC, double *tCC, long unsigned int timeCC, double current_time, double &h1, double &zb1, double2 &q1, int npx, int npy, int pos, double *tidesBd, float *tidesT, int tidesNPT){
-    
-    double dt;
-    dt = tCC[1]-tCC[0];
-    
-    int t, tp;
-    t = int((current_time-tCC[0])/dt) ;
-    t*=(t>0);
-    tp = t+1;
-    int posCC = t*(2*npx+2*npy)*4 + pos*4;
-    int posCCp = tp*(2*npx+2*npy)*4 + pos*4;
-    
-    double m, b;
-    m = (CC[posCCp]-CC[posCC])/dt;
-    b = CC[posCC] - m*tCC[t];
-    h1 = m*current_time+b;
-    // h1*=UNITS;
+    int t = int((current_time - tCC[0]) / dt);
+    t *= (t > 0);
+    int tp = t + 1;
+    int posCC  = t * (2 * npx + 2 * npy) * 4 + pos * 4;
+    int posCCp = tp * (2 * npx + 2 * npy) * 4 + pos * 4;
 
+    double m = (CC[posCCp] - CC[posCC]) / dt;
+    double b = CC[posCC] - m * tCC[t];
+    h1 = m * current_time + b;
 
-    m = (CC[posCCp+3]-CC[posCC+3])/dt;
-    b = CC[posCC+3] - m*tCC[t];
-    zb1 = m*current_time+b;
+    m = (CC[posCCp + 3] - CC[posCC + 3]) / dt;
+    b = CC[posCC + 3] - m * tCC[t];
+    zb1 = m * current_time + b;
 
     h1 += zb1;
 
-    m = (CC[posCCp+1]-CC[posCC+1])/dt;
-    b = CC[posCC+1] - m*tCC[t];
-    q1.x = m*current_time+b;
-    q1.x *= h1   ;
+    m = (CC[posCCp + 1] - CC[posCC + 1]) / dt;
+    b = CC[posCC + 1] - m * tCC[t];
+    q1.x = m * current_time + b;
+    q1.x *= h1;
 
-    m = (CC[posCCp+2]-CC[posCC+2])/dt;
-    b = CC[posCC+2] - m*tCC[t];
-    q1.y = m*current_time+b;
-    q1.y *= h1    ;
+    m = (CC[posCCp + 2] - CC[posCC + 2]) / dt;
+    b = CC[posCC + 2] - m * tCC[t];
+    q1.y = m * current_time + b;
+    q1.y *= h1;
 
+    hc1 = 0.0;
 
     // tides
     // dt = tidesT[1]-tidesT[0];
@@ -239,247 +212,197 @@ static __device__ inline void interpolate_time(double *CC, double *tCC, long uns
     // m = (tidesBd[posCCp]-tidesBd[posCC])/dt;
     // b = tidesBd[posCC] - m*tidesT[t];
     // h1 = h1 + (m*current_time+b) * (current_time<tidesT[tidesNPT-1]);
-    
 }
 
+__global__ void VolumeSolver(int *fixH, double current_time, SimParams params, double* reconsL, double* reconsR, double* reconsD, double* reconsU, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC, double *tidesBd, float *tidesT, int tidesNPT) {
 
-__global__ void VolumeSolver (int *fixH, double current_time, SimParams params, double* reconsL, double* reconsR, double* reconsD, double* reconsU, double *FL, double *FR, double *FU, double *FD, double *d_CC, double *d_tCC, long unsigned int timeCC, double *tidesBd, float *tidesT, int tidesNPT){
-
-	int i = blockIdx.x*NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
-	int j = blockIdx.y*NUM_THREADS_HORIZONTAL_VOL  + threadIdx.y;
+    int i = blockIdx.x * NUM_THREADS_HORIZONTAL_VOL + threadIdx.x;
+    int j = blockIdx.y * NUM_THREADS_VERTICAL_VOL   + threadIdx.y;
     int pos0, pos1;
-    int posr0, posr1;
+    int nvol = params.nvol;
     double h0, h1, zb0, zb1, hc0, hc1;
     double2 q0, q1;
-    int fixed_sediment=0; // if 0, it does not move. If 1, it moves normally.
+    int fixed_sediment = 0;
 
     if ((i <= params.npx) && (j <= params.npy)) {
-            if((i <= params.npx) && (j < params.npy)){
-                // Riemann problems at vertical edges
+        if ((i <= params.npx) && (j < params.npy)) {
+            // Riemann problems at vertical edges
+            pos0 = i - 1 + j * params.npx;
+            pos1 = i + j * params.npx;
 
-                pos0 = i-1 + j*params.npx;
-                pos1 = i + j*params.npx;
-                posr0 = pos0*5;
-                posr1 = pos1*5;
-                
-                
-                if(i==0){
-                    
-#if WBC==2
-                    
+            if (i == 0) {
+#if WBC == 2
+
 #else
-                    pos0 = pos1;
-                    pos1 = -1;
-                    posr0=posr1;
-                    posr1=-1;
-                        
-                    h1   = h0   = reconsL[posr0];
-                    q1.x = q0.x = reconsL[posr0+1];
-                    q1.y = q0.y = reconsL[posr0+2];
-                    zb1  = zb0  = reconsL[posr0+3];
-                    hc1  = hc0  = reconsL[posr0+4];
-                        
-#if WBC==1
+                pos0 = pos1;
+                pos1 = -1;
+                h1   = h0   = reconsL[pos0];
+                q1.x = q0.x = reconsL[1 * nvol + pos0];
+                q1.y = q0.y = reconsL[2 * nvol + pos0];
+                zb1  = zb0  = reconsL[3 * nvol + pos0];
+                hc1  = hc0  = reconsL[4 * nvol + pos0];
+
+#if WBC == 1
+                q1.x = -q0.x;
+#endif
+#if (SPL <= 0 && Read_files == 1)
+                if (current_time < d_tCC[timeCC - 2]) {
+                    interpolate_time(d_CC, d_tCC, timeCC, current_time, h1, zb1, q1, hc1, params.npx, params.npy, 2 * params.npx + params.npy + j, tidesBd, tidesT, tidesNPT);
+                }
+                else {
+                    q1.x = -q0.x;
+                }
+#endif
+                fixed_sediment = fixH[pos0];
+                RiemannSolver_Vols(h0, zb0, q0, hc0, h1, zb1, q1, hc1, pos0, pos1, params, FL, FR, -1, 0, fixed_sediment);
+#endif
+            }
+            else {
+                if (i == params.npx) {
+#if WBC == 2
+                    pos1 = j * params.npx;
+
+                    h0   = reconsR[pos0];
+                    q0.x = reconsR[1 * nvol + pos0];
+                    q0.y = reconsR[2 * nvol + pos0];
+                    zb0  = reconsR[3 * nvol + pos0];
+                    hc0  = reconsR[4 * nvol + pos0];
+
+                    h1   = reconsL[pos1];
+                    q1.x = reconsL[1 * nvol + pos1];
+                    q1.y = reconsL[2 * nvol + pos1];
+                    zb1  = reconsL[3 * nvol + pos1];
+                    hc1  = reconsL[4 * nvol + pos1];
+#else
+                    pos1 = -2;
+
+                    h1   = h0   = reconsR[pos0];
+                    q1.x = q0.x = reconsR[1 * nvol + pos0];
+                    q1.y = q0.y = reconsR[2 * nvol + pos0];
+                    zb1  = zb0  = reconsR[3 * nvol + pos0];
+                    hc1  = hc0  = reconsR[4 * nvol + pos0];
+
+#if WBC == 1
                     q1.x = -q0.x;
 #endif
-#if (SPL<=0 && Read_files==1)  // Enforcing
-                    if(current_time<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,params.npx,params.npy,2*params.npx+params.npy+j, tidesBd, tidesT, tidesNPT);
+#endif
+#if (SPL <= 0 && Read_files == 1)
+                    if (current_time < d_tCC[timeCC - 2]) {
+                        interpolate_time(d_CC, d_tCC, timeCC, current_time, h1, zb1, q1, hc1, params.npx, params.npy, params.npx + j, tidesBd, tidesT, tidesNPT);
                     }
-                    else{ // Wall boundary
+                    else {
                         q1.x = -q0.x;
                     }
 #endif
-// h1= 4.0*cos(2*PI*current_time/5.0);
-// q1.x = h1*q1.x/h0;
-
                     fixed_sediment = fixH[pos0];
-
-                    RiemannSolver_Vols(h0,zb0,q0,hc0,h1,zb1,q1,hc1,posr0,posr1,params,FL,FR,-1,0,fixed_sediment);
-#endif
+                    RiemannSolver_Vols(h0, zb0, q0, hc0, h1, zb1, q1, hc1, pos0, pos1, params, FL, FR, 1, 0, fixed_sediment);
                 }
-                else{
-                    if(i==params.npx){
-#if WBC==2
-                        pos1 = j*params.npx;
-                        posr1 = pos1*5;
+                else {
+                    h0   = reconsR[pos0];
+                    q0.x = reconsR[1 * nvol + pos0];
+                    q0.y = reconsR[2 * nvol + pos0];
+                    zb0  = reconsR[3 * nvol + pos0];
+                    hc0  = reconsR[4 * nvol + pos0];
 
-                        h0   = reconsR[posr0];
-                        q0.x = reconsR[posr0+1];
-                        q0.y = reconsR[posr0+2];
-                        zb0  = reconsR[posr0+3];
-                        hc0  = reconsR[posr0+4];
-                        
-                        h1   = reconsL[posr1];
-                        q1.x = reconsL[posr1+1];
-                        q1.y = reconsL[posr1+2];
-                        zb1  = reconsL[posr1+3];
-                        hc1  = reconsL[posr1+4];
-                        
+                    h1   = reconsL[pos1];
+                    q1.x = reconsL[1 * nvol + pos1];
+                    q1.y = reconsL[2 * nvol + pos1];
+                    zb1  = reconsL[3 * nvol + pos1];
+                    hc1  = reconsL[4 * nvol + pos1];
 
-                        
-#else
-                        pos1 = -2;
-                        posr1 = -2;
-                        
-                        h1   = h0   = reconsR[posr0];
-                        q1.x = q0.x = reconsR[posr0+1];
-                        q1.y = q0.y = reconsR[posr0+2];
-                        zb1  = zb0  = reconsR[posr0+3];
-                        hc1  = hc0  = reconsR[posr0+4];
-                        
-#if WBC==1
-                        q1.x = -q0.x;
-#endif
-                        
-#endif
-#if (SPL<=0 && Read_files==1)  // Enforcing
-                    if(current_time<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,params.npx,params.npy,params.npx+j, tidesBd, tidesT, tidesNPT);
-                    }
-                    else{ // Wall boundary
-                        q1.x = -q0.x;
-                    }
-#endif
-
-                        fixed_sediment = fixH[pos0];
-                        RiemannSolver_Vols(h0,zb0,q0,hc0,h1,zb1,q1,hc1,posr0,posr1,params,FL,FR,1,0,fixed_sediment);
-                        
-                    }
-                    else{
-                        h0   = reconsR[posr0];
-                        q0.x = reconsR[posr0+1];
-                        q0.y = reconsR[posr0+2];
-                        zb0  = reconsR[posr0+3];
-                        hc0  = reconsR[posr0+4];
-                        
-                        h1   = reconsL[posr1];
-                        q1.x = reconsL[posr1+1];
-                        q1.y = reconsL[posr1+2];
-                        zb1  = reconsL[posr1+3];
-                        hc1  = reconsL[posr1+4];
-   
-                        fixed_sediment = fixH[pos0]*fixH[pos1];
-                        RiemannSolver_Vols(h0,zb0,q0,hc0,h1,zb1,q1,hc1,posr0,posr1,params,FL,FR,1,0,fixed_sediment);
-                    }
+                    fixed_sediment = fixH[pos0] * fixH[pos1];
+                    RiemannSolver_Vols(h0, zb0, q0, hc0, h1, zb1, q1, hc1, pos0, pos1, params, FL, FR, 1, 0, fixed_sediment);
                 }
-                
-                
-                
-                
             }
-            if((i < params.npx) && (j <= params.npy)){
-                // Riemann problems at horizontal edges
-                pos0 = i + (j-1)*params.npx;
-                pos1 = i + j*params.npx;
-                posr0 = pos0*5;
-                posr1 = pos1*5;
-                
-                
-                if(j==0){
-                    
-#if WBC==2
-                    
-#else
-                    pos0 = pos1;
-                    pos1 = -1;
-                    posr0 = posr1;
-                    posr1 = -1;
+        }
 
-                    h1   = h0   = reconsD[posr0];
-                    q1.x = q0.x = reconsD[posr0+1];
-                    q1.y = q0.y = reconsD[posr0+2];
-                    zb1  = zb0  = reconsD[posr0+3];
-                    hc1  = hc0  = reconsD[posr0+4];
-#if WBC==1
+        if ((i < params.npx) && (j <= params.npy)) {
+            // Riemann problems at horizontal edges
+            pos0 = i + (j - 1) * params.npx;
+            pos1 = i + j * params.npx;
+
+            if (j == 0) {
+#if WBC == 2
+
+#else
+                pos0 = pos1;
+                pos1 = -1;
+
+                h1   = h0   = reconsD[pos0];
+                q1.x = q0.x = reconsD[1 * nvol + pos0];
+                q1.y = q0.y = reconsD[2 * nvol + pos0];
+                zb1  = zb0  = reconsD[3 * nvol + pos0];
+                hc1  = hc0  = reconsD[4 * nvol + pos0];
+#if WBC == 1
+                q1.y = -q0.y;
+#endif
+#if (SPL <= 0 && Read_files == 1)
+                if (current_time < d_tCC[timeCC - 2]) {
+                    interpolate_time(d_CC, d_tCC, timeCC, current_time, h1, zb1, q1, hc1, params.npx, params.npy, i, tidesBd, tidesT, tidesNPT);
+                }
+                else {
+                    q1.y = -q0.y;
+                }
+#endif
+                fixed_sediment = fixH[pos0];
+                RiemannSolver_Vols(h0, zb0, q0, hc0, h1, zb1, q1, hc1, pos0, pos1, params, FD, FU, 0, -1, fixed_sediment);
+#endif
+            }
+            else {
+                if (j == params.npy) {
+#if WBC == 2
+                    pos1 = i;
+
+                    h0   = reconsU[pos0];
+                    q0.x = reconsU[1 * nvol + pos0];
+                    q0.y = reconsU[2 * nvol + pos0];
+                    zb0  = reconsU[3 * nvol + pos0];
+                    hc0  = reconsU[4 * nvol + pos0];
+
+                    h1   = reconsD[pos1];
+                    q1.x = reconsD[1 * nvol + pos1];
+                    q1.y = reconsD[2 * nvol + pos1];
+                    zb1  = reconsD[3 * nvol + pos1];
+                    hc1  = reconsD[4 * nvol + pos1];
+#else
+                    pos1 = -2;
+                    h1   = h0   = reconsU[pos0];
+                    q1.x = q0.x = reconsU[1 * nvol + pos0];
+                    q1.y = q0.y = reconsU[2 * nvol + pos0];
+                    zb1  = zb0  = reconsU[3 * nvol + pos0];
+                    hc1  = hc0  = reconsU[4 * nvol + pos0];
+#if WBC == 1
                     q1.y = -q0.y;
 #endif
-                    
-#if (SPL<=0 && Read_files==1)  // Enforcing
-                    if(current_time<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,params.npx,params.npy,i, tidesBd, tidesT, tidesNPT);
+#endif
+#if (SPL <= 0 && Read_files == 1)
+                    if (current_time < d_tCC[timeCC - 2]) {
+                        interpolate_time(d_CC, d_tCC, timeCC, current_time, h1, zb1, q1, hc1, params.npx, params.npy, params.npx + params.npy + i, tidesBd, tidesT, tidesNPT);
                     }
-                    else{ // Wall boundary
+                    else {
                         q1.y = -q0.y;
                     }
 #endif
-
-                    
                     fixed_sediment = fixH[pos0];
-                    RiemannSolver_Vols(h0,zb0,q0,hc0,h1,zb1,q1,hc1,posr0,posr1,params,FD,FU,0,-1,fixed_sediment);
-#endif
+                    RiemannSolver_Vols(h0, zb0, q0, hc0, h1, zb1, q1, hc1, pos0, pos1, params, FD, FU, 0, 1, fixed_sediment);
                 }
-                else{
-                    if(j==params.npy){
-#if WBC==2                        
-                        pos1 = i;
-                        posr1 = pos1*5;
-                        
-                        h0   = reconsU[posr0];
-                        q0.x = reconsU[posr0+1];
-                        q0.y = reconsU[posr0+2];
-                        zb0  = reconsU[posr0+3]
-                        hc0  = reconsU[posr0+4];
-                        
-                        h1   = reconsD[posr1];
-                        q1.x = reconsD[posr1+1];
-                        q1.y = reconsD[posr1+2];
-                        zb1  = reconsD[posr1+3];
-                        hc1  = reconsD[posr1+4];
-                        
+                else {
+                    h0   = reconsU[pos0];
+                    q0.x = reconsU[1 * nvol + pos0];
+                    q0.y = reconsU[2 * nvol + pos0];
+                    zb0  = reconsU[3 * nvol + pos0];
+                    hc0  = reconsU[4 * nvol + pos0];
 
-#else
-                        pos1 = -2;
-                        posr1 = -2;
-                        h1   = h0   = reconsU[posr0];
-                        q1.x = q0.x = reconsU[posr0+1];
-                        q1.y = q0.y = reconsU[posr0+2];
-                        zb1  = zb0  = reconsU[posr0+3];
-                        hc1  = hc0  = reconsU[posr0+4];
-#if WBC==1
-                        q1.y = -q0.y;
-#endif
-                        
-#endif
-#if (SPL<=0 && Read_files==1)  // Enforcing
-                    if(current_time<d_tCC[timeCC-2]){
-                        interpolate_time(d_CC,d_tCC,timeCC,current_time,h1,zb1,q1,params.npx,params.npy,params.npx+params.npy+i, tidesBd, tidesT, tidesNPT);
-                    }
-                    else{ // Wall boundary
-                        q1.y = -q0.y;
-                    }
-#endif
+                    h1   = reconsD[pos1];
+                    q1.x = reconsD[1 * nvol + pos1];
+                    q1.y = reconsD[2 * nvol + pos1];
+                    zb1  = reconsD[3 * nvol + pos1];
+                    hc1  = reconsD[4 * nvol + pos1];
 
-// h1= 4.0*cos(2*PI*current_time/5.0);
-// q1.y = h1*q1.y/h0;
-                        fixed_sediment = fixH[pos0];
-                        RiemannSolver_Vols(h0,zb0,q0,hc0,h1,zb1,q1,hc1,posr0,posr1,params,FD,FU,0,1,fixed_sediment);
-                        
-                    }
-                    else{
-                        h0   = reconsU[posr0];
-                        q0.x = reconsU[posr0+1];
-                        q0.y = reconsU[posr0+2];
-                        zb0  = reconsU[posr0+3];
-                        hc0  = reconsU[posr0+4];
-                        
-                        h1   = reconsD[posr1];
-                        q1.x = reconsD[posr1+1];
-                        q1.y = reconsD[posr1+2];
-                        zb1  = reconsD[posr1+3];
-                        hc1  = reconsD[posr1+4];
-                        
-                        
-                        fixed_sediment = fixH[pos0]*fixH[pos1];
-                        RiemannSolver_Vols(h0,zb0,q0,hc0,h1,zb1,q1,hc1,posr0,posr1,params,FD,FU,0,1,fixed_sediment);
-                    }
+                    fixed_sediment = fixH[pos0] * fixH[pos1];
+                    RiemannSolver_Vols(h0, zb0, q0, hc0, h1, zb1, q1, hc1, pos0, pos1, params, FD, FU, 0, 1, fixed_sediment);
                 }
             }
-        
-    } 
-    
-    
-    
-    
+        }
+    }
 }
-
